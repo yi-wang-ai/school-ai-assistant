@@ -1,0 +1,43 @@
+# The rules service and its PostgreSQL database.
+# Dify runs separately (see docs/deployment-notes.md). The service joins Dify's
+# network so each side can reach the other by name: the service calls http://nginx/v1,
+# and Dify's workflow calls http://reimburse-service:8000.
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: reimburse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: reimburse
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reimburse"]
+      interval: 3s
+      retries: 10
+
+  service:
+    build: ./service
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://reimburse:${POSTGRES_PASSWORD}@db:5432/reimburse
+      DIFY_BASE_URL: http://nginx/v1
+    ports:
+      - "8000:8000"
+    networks:
+      default: {}
+      dify:
+        aliases: [reimburse-service]
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+
+networks:
+  dify:
+    external: true
+    name: docker_default

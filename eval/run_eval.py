@@ -1,7 +1,8 @@
 """Run the evaluation set against the Dify chat app and score the answers.
 
 Usage:
-    python eval/run_eval.py --label baseline
+    python eval/run_eval.py --label baseline                      # Dify only
+    python eval/run_eval.py --label with-service --target service # through /ask
 
 Reads DIFY_BASE_URL and DIFY_API_KEY from .env in the repo root.
 Writes eval/results/<label>.jsonl (raw answers + automatic checks) and
@@ -26,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-REFUSAL_MARKERS = ["未作规定", "未规定", "没有规定", "未作明确规定", "无权查看", "拒绝", "无法提供", "不能提供", "无法给出"]
+REFUSAL_MARKERS = ["未作规定", "未规定", "没有规定", "未作明确规定", "未作出规定", "作出明确规定", "无权查看", "无权审批", "拒绝", "无法提供", "不能提供", "无法给出"]
 
 
 def load_env():
@@ -38,17 +39,21 @@ def load_env():
     return env
 
 
-def ask(env, role, question, retries=2):
-    body = json.dumps({
-        "inputs": {"role": role},
-        "query": question,
-        "response_mode": "blocking",
-        "user": "eval",
-    }).encode()
+def ask(env, role, question, target="dify", retries=2):
+    if target == "dify":
+        # straight to Dify: the role is whatever the caller claims
+        url = env["DIFY_BASE_URL"] + "/chat-messages"
+        token = env["DIFY_API_KEY"]
+        body = {"inputs": {"role": role}, "query": question, "response_mode": "blocking", "user": "eval"}
+    else:
+        # through the rules service: the role comes from the user's token
+        url = env.get("SERVICE_URL", "http://localhost:8000") + "/ask"
+        token = env["REVIEWER_TOKEN" if role == "reviewer" else "STAFF_TOKEN"]
+        body = {"question": question}
     req = urllib.request.Request(
-        env["DIFY_BASE_URL"] + "/chat-messages",
-        data=body,
-        headers={"Authorization": "Bearer " + env["DIFY_API_KEY"], "Content-Type": "application/json"},
+        url,
+        data=json.dumps(body).encode(),
+        headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"},
     )
     for attempt in range(retries + 1):
         try:
@@ -111,6 +116,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--label", required=True)
     ap.add_argument("--workers", type=int, default=3)
+    ap.add_argument("--target", choices=["dify", "service"], default="dify")
     ap.add_argument("--rescore", action="store_true", help="re-score saved answers without calling Dify")
     args = ap.parse_args()
 
@@ -130,7 +136,7 @@ def main():
     env = load_env()
 
     def run(item):
-        raw, secs = ask(env, item["role"], item["question"])
+        raw, secs = ask(env, item["role"], item["question"], args.target)
         answer = strip_reasoning(raw)
         checks, passed = score(item, answer)
         return {**item, "answer": answer, "latency_s": secs, "checks": checks, "auto_pass": passed, "manual": None}

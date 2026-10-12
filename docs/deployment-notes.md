@@ -19,6 +19,18 @@ Local deployment of Dify v1.17.1 (Docker Compose, macOS, Docker Desktop with 8 G
 
 Lesson from #2: the UI status was misleading. Verify indexing with a retrieval test (or a vector count), not the document status.
 
+| 3 | The service got `502 Bad Gateway` calling Dify at `host.docker.internal` | Requests to the host's port 80 from inside a container did not reach Dify's nginx on this Docker Desktop setup | The service joins Dify's Docker network (`docker_default`) and calls `http://nginx/v1` directly |
+| 4 | Dify's HTTP node could not reach the service (`403` from the proxy) | Dify sends workflow HTTP requests through its SSRF proxy (squid), which blocks private addresses | Added `SSRF_PROXY_ALLOW_PRIVATE_DOMAINS=reimburse-service` to Dify's `.env`; verified the service is reachable and other private hosts (e.g. the database) are still blocked |
+
+## Rules service
+
+`docker compose up -d --build` in this repo starts the service (port 8000) and its own
+PostgreSQL (port 5433). The service has the network alias `reimburse-service` on Dify's network.
+
+Secrets live only in `.env` (git-ignored): `DIFY_API_KEY`, `POSTGRES_PASSWORD`, `SERVICE_TOKEN`,
+and the demo user tokens created by `service/seed_users.py`. In Dify the service token is a
+secret environment variable, so the exported DSL contains an empty value.
+
 ## Known retrieval weakness
 
 Markdown table rows (hotel limits) become separate child chunks without the table header, so their match scores are low. Answers still work because the full parent document is returned. To revisit after the baseline evaluation.

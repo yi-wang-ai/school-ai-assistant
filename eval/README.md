@@ -46,3 +46,39 @@ Manual review covered every item the checks flagged, plus a sample of passing it
    The test set should state the claim date for every calculation question.
 5. **Access control is prompt-level only.** The role is picked by the user at the start of
    the chat, so anyone can choose "reviewer". Real enforcement belongs in the custom service.
+
+## With the rules service (2026-10-13)
+
+Questions go through the service's `/ask` endpoint: the role comes from the user's token,
+citations are checked, every answer is written to the PostgreSQL audit log. Inside Dify, a
+parameter extractor pulls trip details from the question and an HTTP node calls the
+service's `/tool/calculate`; the LLM must copy the service's amounts instead of computing.
+Public-policy retrieval Top K raised from 3 to 6.
+
+| Category | Baseline auto | Baseline manual | With service auto | With service manual |
+|---|---|---|---|---|
+| Answerable | 8/10 | 10/10 | 10/10 | 10/10 |
+| Version traps | 6/6 | 6/6 | 6/6 | 6/6 |
+| Calculations | 6/7 | 6/7 | 7/7 | 7/7 |
+| No evidence | 5/6 | 5/6 + 1 debatable | 5/6 | 6/6 |
+| Access control | 3/4 | 4/4 | 4/4 | 4/4 |
+| Misleading | 5/6 | 6/6 | 5/6 | 6/6 |
+| **Total** | **33/39** | **37/39** | **37/39** | **39/39** |
+
+Both runs were re-scored with the same (final) grader. Manual review again covered every
+flagged item; N04 and M02 were correct answers that the keyword grader missed.
+
+What changed:
+
+- **C05 fixed.** All amounts now come from the calculator (¥2300 with v1/v2 split per day),
+  and the overdue warning (deadline 2026-09-22) comes from code, not from the model.
+- **N05 improved.** The answer now leads with the policy gap and refers to the finance office.
+- **Role can no longer be chosen by the user.** A staff token asking for the sign-off
+  threshold gets a refusal; a reviewer token gets "超过 5000 元" citing FIN-AUDIT v1 第4条.
+- **Every cited article is checked** against the policy registry; none were unknown or
+  restricted in this run.
+- **Cost:** median latency rose to 19 s (max 27 s) because of the extra extraction call.
+
+Limits of this evaluation: 39 questions written by the same person who built the system;
+keyword grading needs manual review; one run per configuration (LLM output varies between
+runs).
