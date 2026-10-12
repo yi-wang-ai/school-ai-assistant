@@ -1,0 +1,153 @@
+app:
+  description: 论文结构化摘要（研究场景演示）
+  icon: 📚
+  icon_background: '#E0F2FE'
+  icon_type: emoji
+  mode: workflow
+  name: 文献摘要工作流
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.24@9e12eef09973667f0eaf4f082af883167e1de88740b22e71e71488d020c3778a
+    version: null
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload: {}
+    sensitive_word_avoidance:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data: {}
+      id: start-source-llm
+      source: start
+      sourceHandle: source
+      target: llm
+      targetHandle: target
+      type: custom
+    - data: {}
+      id: llm-source-end
+      source: llm
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - label: 论文全文或摘要
+          max_length: 30000
+          required: true
+          type: paragraph
+          variable: paper
+        - label: 关注点（可选）
+          max_length: 200
+          required: false
+          type: text-input
+          variable: focus
+      height: 90
+      id: start
+      position:
+        x: 80
+        y: 280
+      positionAbsolute:
+        x: 80
+        y: 280
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: user
+          text: '你是职业院校科研处的文献阅读助手（演示系统）。阅读用户粘贴的论文全文或摘要，输出结构化摘要。
+
+
+            要求：
+
+            1. 只根据给出的文本，不补充文本外的信息；文本没有提到的项填"文中未说明"。
+
+            2. 数字（样本量、准确率等）必须原样摘录。
+
+            3. 用中文输出，按以下格式：
+
+
+            研究问题：
+
+            研究方法：
+
+            数据与样本：
+
+            主要结论：（不超过 3 条）
+
+            局限性：（作者自述的 + 你从文本中能直接看出的，分开写）
+
+            与职业教育教学的相关性：（结合用户关注点，1–2 句）
+
+            关键原文摘录：（1–2 句，加引号）
+
+
+            用户关注点：{{#start.focus#}}
+
+
+            论文文本：
+
+            {{#start.paper#}}'
+        selected: false
+        title: 结构化摘要
+        type: llm
+        vision:
+          enabled: false
+      height: 90
+      id: llm
+      position:
+        x: 380
+        y: 280
+      positionAbsolute:
+        x: 380
+        y: 280
+      type: custom
+      width: 244
+    - data:
+        outputs:
+        - value_selector:
+          - llm
+          - text
+          variable: summary
+        selected: false
+        title: 结束
+        type: end
+      height: 90
+      id: end
+      position:
+        x: 680
+        y: 280
+      positionAbsolute:
+        x: 680
+        y: 280
+      type: custom
+      width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.8
+  rag_pipeline_variables: []

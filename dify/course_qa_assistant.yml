@@ -1,0 +1,185 @@
+app:
+  description: 课程讲义答疑与练习生成（虚构讲义演示）
+  icon: 🎓
+  icon_background: '#E0F2FE'
+  icon_type: emoji
+  mode: advanced-chat
+  name: 课程答疑助手
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.24@9e12eef09973667f0eaf4f082af883167e1de88740b22e71e71488d020c3778a
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/siliconflow:0.0.61@f0952b183715405503a23ccef015e5d43948591fd10b60690f24c07873eed723
+    version: null
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload: {}
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data: {}
+      id: start-source-kr_course
+      source: start
+      sourceHandle: source
+      target: kr_course
+      targetHandle: target
+      type: custom
+    - data: {}
+      id: kr_course-source-llm
+      source: kr_course
+      sourceHandle: source
+      target: llm
+      targetHandle: target
+      type: custom
+    - data: {}
+      id: llm-source-answer
+      source: llm
+      sourceHandle: source
+      target: answer
+      targetHandle: target
+      type: custom
+    nodes:
+    - data:
+        selected: false
+        title: 开始
+        type: start
+        variables: []
+      height: 90
+      id: start
+      position:
+        x: 80
+        y: 280
+      positionAbsolute:
+        x: 80
+        y: 280
+      type: custom
+      width: 244
+    - data:
+        dataset_ids:
+        - iOqnnEfuNVcdUuc2ryB0qoGLtStkk1Ppd2ghLE6X1M1L/wRWnRWwZGHM0nHoT/BR
+        multiple_retrieval_config:
+          reranking_enable: true
+          reranking_mode: reranking_model
+          reranking_model:
+            model: BAAI/bge-reranker-v2-m3
+            provider: langgenius/siliconflow/siliconflow
+          top_k: 4
+        query_variable_selector:
+        - sys
+        - query
+        retrieval_mode: multiple
+        selected: false
+        title: 检索讲义
+        type: knowledge-retrieval
+      height: 90
+      id: kr_course
+      position:
+        x: 380
+        y: 280
+      positionAbsolute:
+        x: 380
+        y: 280
+      type: custom
+      width: 244
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - kr_course
+          - result
+        memory:
+          query_prompt_template: '{{#sys.query#}}'
+          role_prefix:
+            assistant: ''
+            user: ''
+          window:
+            enabled: true
+            size: 6
+        model:
+          completion_params:
+            temperature: 0.3
+          mode: chat
+          name: deepseek-v4-flash
+          provider: langgenius/deepseek/deepseek
+        prompt_template:
+        - role: system
+          text: '你是《Python 程序设计基础》课程的助教，面向高职一年级学生（演示系统，讲义为虚构）。
+
+
+            规则：
+
+            1. 只依据下面的讲义回答，讲义没有的内容说明"本讲讲义未涉及"，不要扩展到讲义以外的知识点。
+
+            2. 回答后标注讲义出处，格式：〔CS101 第4讲 4.x〕。
+
+            3. 学生请求"出题/练习"时：出 3 道题（易、中、难各一道），只考讲义里的知识点，每题附参考答案和对应小节。
+
+            4. 学生问"实验任务"怎么做时：不要直接给完整代码，先给思路提示和关键语句，引导学生自己写；学生明确说已写完并贴出代码时，再帮他检查。
+
+            5. 代码示例不超过 15 行，语言简洁，适合口头讲解。
+
+
+            <讲义>
+
+            {{#context#}}
+
+            </讲义>'
+        selected: false
+        title: 助教回答
+        type: llm
+        vision:
+          enabled: false
+      height: 90
+      id: llm
+      position:
+        x: 680
+        y: 280
+      positionAbsolute:
+        x: 680
+        y: 280
+      type: custom
+      width: 244
+    - data:
+        answer: '{{#llm.text#}}'
+        selected: false
+        title: 输出
+        type: answer
+        variables: []
+      height: 90
+      id: answer
+      position:
+        x: 980
+        y: 280
+      positionAbsolute:
+        x: 980
+        y: 280
+      type: custom
+      width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.8
+  rag_pipeline_variables: []
