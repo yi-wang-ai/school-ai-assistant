@@ -90,6 +90,8 @@ Requirements: Docker, about 20 GB of free disk, a DeepSeek API key and a Silicon
 ```
 docs/requirements.md      requirements written as if for the finance office
 docs/deployment-notes.md  setup and every deployment problem with its fix
+docs/demo-script.md       5-minute demo with commands and likely interview questions
+docs/lesson-plan.md       4-hour student lab: building a course Q&A assistant in Dify
 data/                     fictional policies, course notes, abstract
 dify/                     exported Dify apps (secrets blank)
 service/                  FastAPI rules service + tests
