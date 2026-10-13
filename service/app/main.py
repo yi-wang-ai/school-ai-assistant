@@ -16,7 +16,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from . import db
-from .calculator import CalcResult, PolicyGap, TripRequest, calculate
+from .calculator import CalcResult, PolicyGap, TripRequest, calculate, to_markdown
 from .citations import CitationCheck, check
 
 app = FastAPI(title="Reimbursement policy service")
@@ -103,7 +103,8 @@ def tool_calculate(req: ToolCalcRequest):
             meals_provided={d: kind for d, kind in _pairs(req.meals_provided)},
             claim_date=req.claim_date or None,
         )
-        return {"ok": True, "result": calculate(trip).model_dump(mode="json")}
+        result = calculate(trip)
+        return {"ok": True, "result": result.model_dump(mode="json"), "breakdown_md": to_markdown(result)}
     except PolicyGap as gap:
         return {"ok": False, "policy_gap": str(gap)}
     except ValueError as e:

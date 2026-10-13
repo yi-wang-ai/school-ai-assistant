@@ -36,3 +36,12 @@ def test_policy_gap_reported_not_raised():
 def test_bad_input_reported_not_raised():
     r = post({"is_calculation": "yes", "city": "北京", "start": "2026-10-12", "end": "2026-10-10"})
     assert r.status_code == 200 and "input_error" in r.json()
+
+
+def test_breakdown_markdown_carries_every_amount():
+    r = post({"is_calculation": "yes", "city": "广州", "start": "2026-08-30", "end": "2026-09-02",
+              "nights": "2026-08-30:540;2026-08-31:540;2026-09-01:540", "claim_date": "2026-10-13"}).json()
+    md = r["breakdown_md"]
+    assert "总计 **2300 元**" in md and "个人自理：80 元" in md
+    assert "〔FIN-TRAVEL v1 第5条〕" in md and "〔FIN-TRAVEL v2 第13条〕" in md
+    assert "2026-09-22" in md

@@ -121,4 +121,25 @@ def calculate(req: TripRequest) -> CalcResult:
     )
 
 
-__all__ = ["TripRequest", "CalcResult", "calculate", "PolicyGap"]
+ITEM_NAMES = {"hotel": "住宿费", "meal": "伙食补助", "local": "市内交通"}
+
+
+def to_markdown(r: CalcResult) -> str:
+    """Render the result for the chat answer, so no number passes through the LLM."""
+    rows = ["| 日期 | 项目 | 金额（元） | 依据 | 说明 |", "|---|---|---:|---|---|"]
+    for l in sorted(r.lines, key=lambda l: (l.date, list(ITEM_NAMES).index(l.item))):
+        rows.append(f"| {l.date} | {ITEM_NAMES[l.item]} | {l.amount:g} | 〔{l.citation}〕 | {l.note} |")
+    parts = ["**计算明细（规则服务自动计算）**", "", *rows, ""]
+    parts.append("合计：" + "，".join(f"{ITEM_NAMES[k]} {v:g} 元" for k, v in r.totals.items() if v) + f"；总计 **{r.total:g} 元**")
+    if r.personal_excess:
+        parts.append(f"个人自理：{r.personal_excess:g} 元")
+    for w in r.warnings:
+        parts.append(f"⚠ {w}")
+    for g in r.gaps:
+        parts.append(f"⚠ 未计入：{g}")
+    if len({l.citation.split()[1] for l in r.lines}) > 1:
+        parts.append(f"跨版本分段适用〔{V2.cite('split')}〕")
+    return "\n".join(parts)
+
+
+__all__ = ["TripRequest", "CalcResult", "calculate", "to_markdown", "PolicyGap"]
