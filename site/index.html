@@ -314,7 +314,7 @@ fetch('data/showcase.json').then(r => r.json()).then(data => {
     [...list.children].forEach((b, j) => b.classList.toggle('on', i === j));
     const c = data.conversations[i];
     $('convview').innerHTML =
-      '<div class="meta">' + esc(c.app) + ' · 角色：' + esc(ROLE[c.role] || c.role) + ' · 用时 ' + c.latency_s + ' 秒</div>' +
+      '<div class="meta">' + esc(c.app) + ' · 角色：' + esc(ROLE[c.role] || c.role) + (c.latency_s ? ' · 用时 ' + c.latency_s + ' 秒' : '') + '</div>' +
       '<div class="q"><b>问：</b>' + esc(c.question) + '</div>' +
       '<div class="answer">' + md(c.answer) + '</div>' +
       '<div class="note ' + c.verdict + '"><b>人工复核：' + VERDICT[c.verdict] + '。</b>' + esc(c.note) + '</div>';
