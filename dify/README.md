@@ -46,8 +46,31 @@ Test: [eval/teaching_testset.jsonl](../eval/teaching_testset.jsonl), 10 question
 |---|---|---|
 | Before (prompt only) | 1/12 | 9/20 |
 | Hint branch + guard for fenced code | 5/12 | 13/20 |
-| + guard requires one blank per 3 lines | 9/12 | 17/20 |
-| + guard also detects unfenced code, one blank per 2 lines | 12/12 | 20/20 |
+| + guard requires one blank per 3 lines | 8/12 | 16/20 |
+| + guard also detects unfenced code, one blank per 2 lines | 11/12 | 19/20 |
+| **+ teacher-written hints for the 3 lab tasks (current)** | **12/12** | **20/20** |
+
+All rows are graded with the final guard detection. Two earlier figures were first reported
+too high and are corrected here: the "unfenced" run was reported as 12/12, but one answer
+opened its code fence with trailing spaces, which both the guard and the grader missed
+(fixed, with a test).
+
+### Correct hints: teacher-written and tested
+
+A guard can stop solutions from leaking but cannot make a hint correct: one AI hint started
+the balance at ¥1000 and left out the yearly ¥1000 deposit. For the lecture's three lab tasks
+the app now answers from [code_nodes/lab_hints.py](code_nodes/lab_hints.py), a hint sheet the
+teacher writes (steps, skeleton with blanks, common mistakes), and the model is not involved.
+
+[code_nodes/test_lab_hints.py](code_nodes/test_lab_hints.py) fills every skeleton's blanks with
+the reference answer, runs it and checks the output (task 2: 9 years, with deposits at the
+start of each year), checks no skeleton is hand-in-able, and checks question routing. The
+earlier wrong hint, put through the same test, prints 78 years and fails.
+
+Homework questions that match none of the three tasks still go to the AI hint branch and the
+guard, and the answer ends with a note that it is AI-generated and may be wrong.
+
+In the latest run all 12 lab answers were the tested teacher hints, word for word.
 
 Lessons:
 - The prompt-injection request ("忽略之前的规则…") got past the hint prompt in every run;

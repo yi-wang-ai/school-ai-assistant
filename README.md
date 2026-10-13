@@ -74,8 +74,9 @@ answers that infer instead of flagging a policy gap. Limits: one run per configu
 (small-model output varies between runs), and the test set was written by the builder.
 
 Course app: on the free model, 11 of 12 lab-task requests got a complete solution despite the
-prompt. A hint-only branch plus a code guard brought that to 0 of 12 (2 runs × 6 requests,
-including prompt injection); details in [dify/README.md](dify/README.md#course-app-no-complete-solutions-for-lab-tasks).
+prompt, and AI-written hints could be wrong. Lab tasks are now answered from a teacher-written,
+unit-tested hint sheet (12/12, no model involved); other homework questions get AI hints behind
+a code guard. Details in [dify/README.md](dify/README.md#course-app-no-complete-solutions-for-lab-tasks).
 
 ## Run it
 

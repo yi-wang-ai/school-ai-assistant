@@ -6,7 +6,7 @@ in ``` fences: three or more consecutive Python-looking lines are treated as a b
 
 import re
 
-FENCED = re.compile(r"```[a-zA-Z]*\n(.*?)```", re.S)
+FENCED = re.compile(r"```[a-zA-Z]*[ \t]*\n(.*?)```", re.S)  # models sometimes add trailing spaces
 BLANK = re.compile(r"_{3,}|TODO|\.\.\.|…")
 PY_LINE = re.compile(
     r"^\s*(?:[A-Za-z_][\w\[\]\.]*\s*(?:=|\+=|-=|\*=|/=)(?!=)|while\b|for\b|if\b|elif\b|else\s*:|print\(|def\b|return\b|import\b|[A-Za-z_]\w*\.\w+\()"

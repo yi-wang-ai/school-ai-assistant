@@ -52,3 +52,11 @@ def test_unfenced_skeleton_with_enough_blanks_is_kept():
 def test_prose_is_not_mistaken_for_code():
     text = "思路：\n1. 初始化本金为 0。\n2. 使用 while 循环判断本金。\n3. 每年存入 1000 元。\n写完后把代码贴给我。"
     assert main(text)["removed"] == 0
+
+
+def test_fence_with_trailing_spaces_is_still_checked():
+    code = "import random  \ntarget = random.randint(1, 100)  \nguesses = 0  \nwhile ____:  \n    n = int(input())  \n" \
+           "    if n > target:  \n        print('big')  \n    elif n < target:  \n        print('small')  \n" \
+           "    else:  \n        ____  \n    guesses += 1  \nprint(guesses)  "
+    r = main("关键语句：  \n```python  \n" + code + "\n```  \n自查：……")
+    assert r["removed"] == 1 and "random.randint" not in r["text"]

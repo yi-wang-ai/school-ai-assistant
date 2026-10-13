@@ -64,13 +64,6 @@ workflow:
       targetHandle: target
       type: custom
     - data: {}
-      id: is_hint-true-llm_hint
-      source: is_hint
-      sourceHandle: 'true'
-      target: llm_hint
-      targetHandle: target
-      type: custom
-    - data: {}
       id: llm_hint-source-guard
       source: llm_hint
       sourceHandle: source
@@ -89,6 +82,34 @@ workflow:
       source: is_hint
       sourceHandle: 'false'
       target: llm
+      targetHandle: target
+      type: custom
+    - data: {}
+      id: is_hint-true-lab_hint
+      source: is_hint
+      sourceHandle: 'true'
+      target: lab_hint
+      targetHandle: target
+      type: custom
+    - data: {}
+      id: lab_hint-source-has_teacher_hint
+      source: lab_hint
+      sourceHandle: source
+      target: has_teacher_hint
+      targetHandle: target
+      type: custom
+    - data: {}
+      id: has_teacher_hint-true-answer_teacher
+      source: has_teacher_hint
+      sourceHandle: 'true'
+      target: answer_teacher
+      targetHandle: target
+      type: custom
+    - data: {}
+      id: has_teacher_hint-false-llm_hint
+      source: has_teacher_hint
+      sourceHandle: 'false'
+      target: llm_hint
       targetHandle: target
       type: custom
     nodes:
@@ -325,10 +346,10 @@ workflow:
       height: 90
       id: llm_hint
       position:
-        x: 1280
+        x: 1880
         y: 120
       positionAbsolute:
-        x: 1280
+        x: 1880
         y: 120
       type: custom
       width: 244
@@ -337,12 +358,12 @@ workflow:
           \ code node \"拦截完整代码\").\n\nHides code a student could hand in as is. Code\
           \ counts whether or not the model put it\nin ``` fences: three or more consecutive\
           \ Python-looking lines are treated as a block.\n\"\"\"\n\nimport re\n\n\
-          FENCED = re.compile(r\"```[a-zA-Z]*\\n(.*?)```\", re.S)\nBLANK = re.compile(r\"\
-          _{3,}|TODO|\\.\\.\\.|…\")\nPY_LINE = re.compile(\n    r\"^\\s*(?:[A-Za-z_][\\\
-          w\\[\\]\\.]*\\s*(?:=|\\+=|-=|\\*=|/=)(?!=)|while\\b|for\\b|if\\b|elif\\\
-          b|else\\s*:|print\\(|def\\b|return\\b|import\\b|[A-Za-z_]\\w*\\.\\w+\\()\"\
-          \n)\nNOTE = \"（这里本来是一段完整或接近完整的代码，已省略。请按上面的思路自己写，写完把代码贴给我，我帮你检查。）\"\n\n\n\
-          def too_complete(code: str) -> bool:\n    lines = [l for l in code.strip().splitlines()\
+          FENCED = re.compile(r\"```[a-zA-Z]*[ \\t]*\\n(.*?)```\", re.S)  # models\
+          \ sometimes add trailing spaces\nBLANK = re.compile(r\"_{3,}|TODO|\\.\\\
+          .\\.|…\")\nPY_LINE = re.compile(\n    r\"^\\s*(?:[A-Za-z_][\\w\\[\\]\\.]*\\\
+          s*(?:=|\\+=|-=|\\*=|/=)(?!=)|while\\b|for\\b|if\\b|elif\\b|else\\s*:|print\\\
+          (|def\\b|return\\b|import\\b|[A-Za-z_]\\w*\\.\\w+\\()\"\n)\nNOTE = \"（这里本来是一段完整或接近完整的代码，已省略。请按上面的思路自己写，写完把代码贴给我，我帮你检查。）\"\
+          \n\n\ndef too_complete(code: str) -> bool:\n    lines = [l for l in code.strip().splitlines()\
           \ if l.strip() and not l.strip().startswith(\"#\")]\n    runnable = re.search(r\"\
           \\b(while|for)\\b|print\\(\", code) and len(lines) >= 3\n    # Hand-in-able:\
           \ fewer blanks than the hint prompt requires (one per 2 lines).\n    return\
@@ -386,6 +407,129 @@ workflow:
       height: 90
       id: guard
       position:
+        x: 2180
+        y: 120
+      positionAbsolute:
+        x: 2180
+        y: 120
+      type: custom
+      width: 244
+    - data:
+        answer: '{{#guard.text#}}
+
+
+          （以上提示由 AI 生成，可能有误，请以讲义和任课教师的说明为准。）'
+        selected: false
+        title: 输出-提示
+        type: answer
+        variables: []
+      height: 90
+      id: answer_hint
+      position:
+        x: 2480
+        y: 120
+      positionAbsolute:
+        x: 2480
+        y: 120
+      type: custom
+      width: 244
+    - data:
+        code: "\"\"\"Teacher-written hints for the lecture's lab tasks (pasted into\
+          \ the Dify code node \"教师提示\").\n\nFor a recognised lab task the app answers\
+          \ from this sheet directly, so the hint cannot be\nwrong in the way a small\
+          \ model's hint can. test_lab_hints.py fills each skeleton's\nblanks with\
+          \ the reference answer and runs it, so a wrong skeleton fails the tests.\n\
+          \"\"\"\n\nimport re\n\nHINTS = {\n    \"1\": {\n        \"title\": \"实验任务\
+          \ 1：最高分、最低分、平均分\",\n        \"section\": \"4.3、4.7\",\n        \"steps\"\
+          : [\n            \"用 for 循环和 range(10) 读入 10 个成绩，逐个 append 到列表里。\",\n  \
+          \          \"先假设第一个成绩既是最高分也是最低分。\",\n            \"再遍历列表：遇到更大的就更新最高分，遇到更小的就更新最低分，同时累加总分。\"\
+          ,\n            \"平均分 = 总分 ÷ 成绩个数。题目要求不用 max/min。\",\n        ],\n      \
+          \  \"skeleton\": [\n            \"scores = []\",\n            \"for i in\
+          \ range(10):\",\n            \"    scores.append(____)\",\n            \"\
+          highest = scores[0]\",\n            \"lowest = ____\",\n            \"total\
+          \ = 0\",\n            \"for s in scores:\",\n            \"    if s > highest:\"\
+          ,\n            \"        highest = ____\",\n            \"    if ____:\"\
+          ,\n            \"        lowest = s\",\n            \"    total += ____\"\
+          ,\n            \"print(highest, lowest, ____)\",\n        ],\n        \"\
+          checks\": [\n            \"input() 得到的是字符串，记得转换成数字。\",\n            \"最高分、最低分的初始值不能设成\
+          \ 0：如果全班都是负分或都很高，结果会错。\",\n        ],\n    },\n    \"2\": {\n        \"\
+          title\": \"实验任务 2：存款多少年后超过 10000 元\",\n        \"section\": \"4.4\",\n \
+          \       \"steps\": [\n            \"本题约定：每年年初存入 1000 元，年末按 3% 计息。\",\n \
+          \           \"余额从 0 开始，年数从 0 开始。\",\n            \"只要余额还没有超过 10000 元，就再过一年：先存入\
+          \ 1000 元，再乘以 1.03，年数加 1。\",\n            \"循环结束时的年数就是答案。\",\n        ],\n\
+          \        \"skeleton\": [\n            \"balance = 0\",\n            \"years\
+          \ = 0\",\n            \"while ____:\",\n            \"    balance = (____)\
+          \ * ____\",\n            \"    years += 1\",\n            \"print(years)\"\
+          ,\n        ],\n        \"checks\": [\n            \"题目是“超过” 10000 元：想清楚循环条件用\
+          \ < 还是 <=。\",\n            \"循环体里一定要改变余额和年数，否则会死循环（见 4.4）。\",\n        ],\n\
+          \    },\n    \"3\": {\n        \"title\": \"实验任务 3：用列表推导式筛选 90 分及以上\",\n\
+          \        \"section\": \"4.6\",\n        \"steps\": [\n            \"列表推导式的格式是\
+          \ [表达式 for 变量 in 列表 if 条件]。\",\n            \"这里表达式就是成绩本身，条件是成绩不低于 90。\"\
+          ,\n        ],\n        \"skeleton\": [\n            \"excellent = [____\
+          \ for s in scores if ____]\",\n        ],\n        \"checks\": [\n     \
+          \       \"“90 分及以上”包含 90 分本身，注意比较符号。\",\n        ],\n    },\n}\n\nTASK_NUMBER\
+          \ = re.compile(r\"实验(?:任务)?\\s*([123一二三])\")\nCN = {\"一\": \"1\", \"二\"\
+          : \"2\", \"三\": \"3\"}\n\n\ndef match(query: str) -> str | None:\n    m\
+          \ = TASK_NUMBER.search(query)\n    if m:\n        return CN.get(m.group(1),\
+          \ m.group(1))\n    if re.search(r\"最高分|最低分\", query) and re.search(r\"平均\"\
+          , query):\n        return \"1\"\n    if re.search(r\"利率|本息|存入|存款|存钱\", query):\n\
+          \        return \"2\"\n    if re.search(r\"90|九十\", query) and re.search(r\"\
+          筛选|推导式|及以上\", query):\n        return \"3\"\n    return None\n\n\ndef render(task_id:\
+          \ str) -> str:\n    h = HINTS[task_id]\n    steps = \"\\n\".join(f\"{i}.\
+          \ {s}\" for i, s in enumerate(h[\"steps\"], 1))\n    checks = \"\\n\".join(f\"\
+          - {c}\" for c in h[\"checks\"])\n    code = \"\\n\".join(h[\"skeleton\"\
+          ])\n    return (\n        f\"**{h['title']}**（任课教师编写的提示）\\n\\n\"\n     \
+          \   f\"思路：\\n{steps}\\n\\n\"\n        f\"关键语句（把 ____ 换成你自己的代码）：\\n```python\\\
+          n{code}\\n```\\n\\n\"\n        f\"自查：\\n{checks}\\n\\n\"\n        f\"出处：〔CS101\
+          \ 第4讲 {h['section']}〕\\n\\n\"\n        \"写完后把你的代码贴给我，我帮你检查。\"\n    )\n\n\
+          \ndef main(query: str) -> dict:\n    task = match(query)\n    if task is\
+          \ None:\n        return {\"matched\": \"no\", \"text\": \"\"}\n    return\
+          \ {\"matched\": \"yes\", \"text\": render(task)}\n"
+        code_language: python3
+        outputs:
+          matched:
+            children: null
+            type: string
+          text:
+            children: null
+            type: string
+        selected: false
+        title: 教师提示
+        type: code
+        variables:
+        - value_selector:
+          - sys
+          - query
+          variable: query
+      height: 90
+      id: lab_hint
+      position:
+        x: 1280
+        y: 120
+      positionAbsolute:
+        x: 1280
+        y: 120
+      type: custom
+      width: 244
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: t1
+            value: 'yes'
+            varType: string
+            variable_selector:
+            - lab_hint
+            - matched
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 有教师提示？
+        type: if-else
+      height: 90
+      id: has_teacher_hint
+      position:
         x: 1580
         y: 120
       positionAbsolute:
@@ -394,19 +538,19 @@ workflow:
       type: custom
       width: 244
     - data:
-        answer: '{{#guard.text#}}'
+        answer: '{{#lab_hint.text#}}'
         selected: false
-        title: 输出-提示
+        title: 输出-教师提示
         type: answer
         variables: []
       height: 90
-      id: answer_hint
+      id: answer_teacher
       position:
         x: 1880
-        y: 120
+        y: -40
       positionAbsolute:
         x: 1880
-        y: 120
+        y: -40
       type: custom
       width: 244
     viewport:
