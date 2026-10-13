@@ -45,3 +45,28 @@ def test_breakdown_markdown_carries_every_amount():
     assert "总计 **2300 元**" in md and "个人自理：80 元" in md
     assert "〔FIN-TRAVEL v1 第5条〕" in md and "〔FIN-TRAVEL v2 第13条〕" in md
     assert "2026-09-22" in md
+
+
+def test_price_and_count_expand_to_consecutive_nights():
+    r = post({"is_calculation": "yes", "city": "北京", "start": "2026-10-12", "end": "2026-10-14",
+              "hotel_price": "600元", "hotel_nights": "2"}).json()
+    assert r["result"]["total"] == 1700
+
+
+def test_explicit_nights_win_over_price_and_count():
+    r = post({"is_calculation": "yes", "city": "杭州", "start": "2026-11-03", "end": "2026-11-04",
+              "nights": "2026-11-03:400", "hotel_price": "999", "hotel_nights": "5"}).json()
+    assert r["result"]["total"] == 800
+
+
+def test_wrong_conclusion_total_is_replaced():
+    from app.main import fix_conclusion_total
+    answer = "结论：一共可报销 1700 元。\n依据：…\n\n合计：…；总计 **600 元**"
+    fixed, corrected = fix_conclusion_total(answer)
+    assert corrected and "总计 600 元" in fixed and "1700" not in fixed.splitlines()[0]
+
+
+def test_matching_conclusion_total_is_kept():
+    from app.main import fix_conclusion_total
+    answer = "结论：总计可报销 **1700 元**。\n\n合计：…；总计 **1700 元**"
+    assert fix_conclusion_total(answer) == (answer, False)

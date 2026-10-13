@@ -25,9 +25,11 @@ CREATE TABLE IF NOT EXISTS audit_log (
     citations       JSONB NOT NULL,
     citation_ok     BOOLEAN NOT NULL,
     blocked         BOOLEAN NOT NULL DEFAULT false,
+    total_corrected BOOLEAN NOT NULL DEFAULT false,
     latency_ms      INT,
     dify_message_id TEXT
 );
+ALTER TABLE audit_log ADD COLUMN IF NOT EXISTS total_corrected BOOLEAN NOT NULL DEFAULT false;
 CREATE TABLE IF NOT EXISTS feedback (
     audit_id    BIGINT PRIMARY KEY REFERENCES audit_log(id),
     helpful     BOOLEAN NOT NULL,
@@ -65,13 +67,14 @@ def add_user(name: str, role: str, token: str):
         )
 
 
-def log_answer(user, question, answer, check, blocked, latency_ms, message_id) -> int:
+def log_answer(user, question, answer, check, blocked, latency_ms, message_id, total_corrected=False) -> int:
     with connect() as conn:
         row = conn.execute(
-            """INSERT INTO audit_log (user_id, role, question, answer, citations, citation_ok, blocked, latency_ms, dify_message_id)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+            """INSERT INTO audit_log (user_id, role, question, answer, citations, citation_ok, blocked,
+                                       total_corrected, latency_ms, dify_message_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
             (user["id"], user["role"], question, answer, json.dumps(check.model_dump(), ensure_ascii=False),
-             check.ok, blocked, latency_ms, message_id),
+             check.ok, blocked, total_corrected, latency_ms, message_id),
         ).fetchone()
         return row["id"]
 

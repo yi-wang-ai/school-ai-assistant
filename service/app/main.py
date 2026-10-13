@@ -10,6 +10,7 @@ import os
 import re
 import secrets
 import time
+from datetime import date, timedelta
 
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -51,6 +52,7 @@ class AskResponse(BaseModel):
     audit_id: int
     citation_check: CitationCheck
     blocked: bool
+    total_corrected: bool = False
 
 
 class FeedbackRequest(BaseModel):
@@ -77,6 +79,8 @@ class ToolCalcRequest(BaseModel):
 
     nights:          "2026-08-30:540;2026-08-31:540"
     meals_provided:  "2026-10-21:full;2026-10-22:partial"
+    hotel_price / hotel_nights: simpler form for small models, "600" and "2";
+                     expanded into consecutive nights from the start date.
     """
     is_calculation: str = "no"
     city: str = ""
@@ -84,11 +88,49 @@ class ToolCalcRequest(BaseModel):
     end: str = ""
     nights: str = ""
     meals_provided: str = ""
+    hotel_price: str = ""
+    hotel_nights: str = ""
     claim_date: str | None = None
 
 
 def _pairs(text: str) -> list[tuple[str, str]]:
     return [tuple(p.split(":", 1)) for p in re.split(r"[;；,，\s]+", text.strip()) if ":" in p]
+
+
+def _number(text: str) -> float | None:
+    m = re.search(r"\d+(\.\d+)?", text or "")
+    return float(m.group()) if m else None
+
+
+def _nights(req: ToolCalcRequest) -> list[dict]:
+    listed = [{"date": d, "price": float(p)} for d, p in _pairs(req.nights)]
+    if listed:
+        return listed
+    price = _number(req.hotel_price)
+    if not price:
+        return []
+    start, end = date.fromisoformat(req.start), date.fromisoformat(req.end)
+    count = int(_number(req.hotel_nights) or (end - start).days)
+    return [{"date": start + timedelta(days=i), "price": price} for i in range(count)]
+
+
+TOTAL_IN_TABLE = re.compile(r"总计 \*\*(\d+(?:\.\d+)?) 元\*\*")
+CONCLUSION = re.compile(r"^结论[:：].*$", re.M)
+
+
+def fix_conclusion_total(answer: str) -> tuple[str, bool]:
+    """If the LLM's conclusion states a total that differs from the code-computed one,
+    replace the conclusion. Returns (answer, corrected)."""
+    table = TOTAL_IN_TABLE.search(answer)
+    concl = CONCLUSION.search(answer)
+    if not table or not concl:
+        return answer, False
+    total = float(table.group(1))
+    stated = [float(x) for x in re.findall(r"(\d+(?:\.\d+)?)\s*\**\s*元", concl.group())]
+    if stated and total not in stated:
+        fixed = f"结论：按规则服务计算，可报销总计 {total:g} 元，明细见下表。（系统已更正：原回答中的金额与计算结果不一致）"
+        return answer[:concl.start()] + fixed + answer[concl.end():], True
+    return answer, False
 
 
 @app.post("/tool/calculate", dependencies=[Depends(service_caller)])
@@ -99,7 +141,7 @@ def tool_calculate(req: ToolCalcRequest):
     try:
         trip = TripRequest(
             city=req.city, start=req.start, end=req.end,
-            nights=[{"date": d, "price": float(p)} for d, p in _pairs(req.nights)],
+            nights=_nights(req),
             meals_provided={d: kind for d, kind in _pairs(req.meals_provided)},
             claim_date=req.claim_date or None,
         )
@@ -127,6 +169,7 @@ def ask(req: AskRequest, user=Depends(current_user)):
         raise HTTPException(502, f"Dify request failed: {e}")
     data = r.json()
     answer = re.sub(r"<think>.*?</think>", "", data["answer"], flags=re.S).strip()
+    answer, corrected = fix_conclusion_total(answer)
 
     result = check(answer, user["role"])
     blocked = bool(result.restricted)
@@ -136,8 +179,8 @@ def ask(req: AskRequest, user=Depends(current_user)):
         answer += "\n\n⚠ 系统提示：回答中引用的 " + "、".join(result.unknown) + " 在政策中不存在，请以政策原文为准。"
 
     latency = int((time.monotonic() - t0) * 1000)
-    audit_id = db.log_answer(user, req.question, answer, result, blocked, latency, data.get("message_id"))
-    return AskResponse(answer=answer, audit_id=audit_id, citation_check=result, blocked=blocked)
+    audit_id = db.log_answer(user, req.question, answer, result, blocked, latency, data.get("message_id"), corrected)
+    return AskResponse(answer=answer, audit_id=audit_id, citation_check=result, blocked=blocked, total_corrected=corrected)
 
 
 @app.post("/feedback")

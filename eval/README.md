@@ -79,6 +79,37 @@ What changed:
   restricted in this run.
 - **Cost:** median latency rose to 19 s (max 27 s) because of the extra extraction call.
 
+## Free model: Qwen3-8B (2026-10-13)
+
+Goal: remove the paid DeepSeek API. All three apps now use SiliconFlow `Qwen/Qwen3-8B`
+(listed at ¥0 on SiliconFlow's pricing page). Same 39 questions, through `/ask`.
+
+| Run | Change | Auto checks | After manual review | Median latency |
+|---|---|---|---|---|
+| `free-qwen3-8b` | swap model, thinking off | 21/39 | not reviewed | 24 s |
+| `free-qwen3-8b-thinking` | thinking on for answers | 29/39 | not reviewed | 36 s (max 125 s) |
+| `free-qwen3-8b-thinking-codecalc` | calculation table rendered by code and appended | 32/39 | 36/39, 3 fail | 36 s |
+| `free-final` | + hotel price × nights extraction, conclusion-total check, domestic-only rule | 34/39 | 36/39, 2 debatable, 1 fail | 36 s (max 71 s) |
+
+What the small model got wrong, and what was changed:
+
+- **Numbers.** It ignored or miscopied the service's amounts (e.g. ¥1000 conclusion vs ¥3200
+  in its own sum vs ¥3080 correct) and invented explanations (Hangzhou as "other region").
+  Fix: the service returns `breakdown_md`; a Dify code node appends it to the answer, and the
+  model may state only the total. `/ask` replaces the conclusion if its total differs.
+- **Extraction.** It sometimes failed to write per-night `date:price` pairs. Fix: also accept
+  `hotel_price` + `hotel_nights`, expanded into consecutive nights in code.
+- **Overseas trips.** It applied the domestic "other regions" rate (¥380) to Japan. Fix: an
+  explicit rule that the policy covers domestic travel only; 6/6 overseas questions then refused.
+- **Still open (free-final):** M01 concludes "政策未作规定" although 第6条 covers it (fail);
+  V05 and N05 infer an answer instead of leading with the policy gap (debatable). In an earlier
+  free run the extractor misread an end date (V04), so code computed the wrong trip correctly:
+  extraction errors remain possible and are not caught by any check.
+
+Trade-off: the free model costs nothing per question but is slower (36 s vs 19 s) and less
+reliable in wording; the paid model reached 39/39. Model output varies between runs, so a
+single run per configuration is weak evidence.
+
 Limits of this evaluation: 39 questions written by the same person who built the system;
 keyword grading needs manual review; one run per configuration (LLM output varies between
 runs).

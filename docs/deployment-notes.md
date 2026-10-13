@@ -6,8 +6,8 @@ Local deployment of Dify v1.17.1 (Docker Compose, macOS, Docker Desktop with 8 G
 
 - Dify cloned to `~/Code/dify` at tag `1.17.1` (kept outside this repo).
 - `docker/.env` copied from `.env.example`; `SECRET_KEY` generated with `openssl rand -base64 42`.
-- Models: DeepSeek (LLM, `DeepSeek V4.1 Flash`), SiliconFlow (`BAAI/bge-m3` embedding, `BAAI/bge-reranker-v2-m3` rerank).
-- Knowledge base: parent-child chunking (parent = full document, child = one line, max 512 chars), high-quality index, hybrid search + rerank, Top K 3.
+- Models (all free on SiliconFlow): `Qwen/Qwen3-8B` (LLM; thinking on for answers, off for extraction), `BAAI/bge-m3` (embedding), `BAAI/bge-reranker-v2-m3` (rerank). DeepSeek was used until 2026-10-13 and then removed (key deleted, plugin uninstalled); see eval/README.md for the comparison.
+- Knowledge base: parent-child chunking (parent = full document, child = one line, max 512 chars), high-quality index, hybrid search + rerank, Top K 3 (the reimbursement workflow uses Top K 6).
   - Reason for full-document parents: v1 and v2 share clause numbers; returning the whole document keeps the version header (effective dates) in the LLM context.
 
 ## Issues and fixes

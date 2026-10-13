@@ -2,7 +2,8 @@
 
 LLM applications for a vocational college, built on a self-hosted [Dify](https://github.com/langgenius/dify)
 plus a small Python service that does what an LLM should not be trusted with: arithmetic,
-version rules, access control and record keeping.
+version rules, access control and record keeping. It runs entirely on free model APIs
+(SiliconFlow `Qwen/Qwen3-8B`, `bge-m3`, `bge-reranker-v2-m3`).
 
 The main application answers staff questions about travel reimbursement policy. Two lighter
 apps on the same Dify instance cover teaching (course Q&A) and research (paper summaries).
@@ -19,10 +20,11 @@ A staff member asks: "2026年8月30日到9月2日去广州出差，住了三晚�
 3. Dify calls the rules service, which calculates each day under the policy version in force
    on that day (the trip crosses the 2026-09-01 revision) and notices the 20-day claim
    deadline has passed.
-4. The LLM writes the answer, copying the service's numbers and citing clauses such as
-   〔FIN-TRAVEL v2 第13条〕.
-5. The service checks that every cited clause exists and that a staff user did not receive
-   reviewer-only content, then writes the exchange to the audit log.
+4. The LLM writes the conclusion and cites clauses such as 〔FIN-TRAVEL v2 第13条〕; the
+   calculation table is rendered by code and appended, so no amount passes through the LLM.
+5. The service checks that every cited clause exists, that a staff user did not receive
+   reviewer-only content, and that the conclusion's total matches the computed total
+   (correcting it if not), then writes the exchange to the audit log.
 
 ## Architecture
 
@@ -33,7 +35,7 @@ flowchart LR
     D --> K1[(Public policies<br/>knowledge base)]
     D -->|reviewer only| K2[(Internal audit guide<br/>knowledge base)]
     D -->|trip details| C["Rules service<br/>/tool/calculate"]
-    D --> L[DeepSeek LLM]
+    D --> L[Qwen3-8B via SiliconFlow, free]
     D -->|answer| S
     S -->|citation check, audit record| P[(PostgreSQL)]
     S -->|answer| U
@@ -45,7 +47,7 @@ flowchart LR
 | `service/app/rules.py` | Both policy versions as data: limits, allowances, effective dates, clause numbers |
 | `service/app/calculator.py` | Deterministic calculation, per-day version selection, deadline check, policy gaps |
 | `service/app/citations.py` | Rejects citations to clauses that do not exist and reviewer-only citations for staff |
-| `service/app/main.py` | `/ask` (role from token, not from the request), `/tool/calculate`, `/feedback` |
+| `service/app/main.py` | `/ask` (role from token, conclusion-total check), `/tool/calculate`, `/feedback` |
 | `service/app/db.py` | Users, audit log, feedback in PostgreSQL |
 
 ## Results
@@ -53,19 +55,23 @@ flowchart LR
 39-question test set: answerable questions, version traps, calculations, questions the policy
 does not cover, access control and misleading questions. Details in [eval/README.md](eval/README.md).
 
-| | Dify only | Dify + rules service |
-|---|---|---|
-| Automatic checks | 33/39 | 37/39 |
-| After manual review | 37/39 | 39/39 |
-| Median latency | – | 19 s |
+| Setup | Model cost | After manual review | Median latency |
+|---|---|---|---|
+| Dify only | paid (DeepSeek) | 37/39 | – |
+| Dify + rules service | paid (DeepSeek) | 39/39 | 19 s |
+| Dify + rules service, model copies numbers | free (Qwen3-8B) | 29/39 on automatic checks | 36 s |
+| **Current: + code-rendered amounts, total check, domestic-only rule** | **free (Qwen3-8B)** | **36/39, 2 debatable, 1 fail** | **36 s** |
 
-The one real failure in the baseline was a trip spanning two policy versions; the model only
-saw one version and could not finish the calculation. With the service, all amounts come from
-code. Limits: one run per configuration, and the test set was written by the builder.
+What moving to the free 8B model showed: it miscopied and invented numbers, so amounts were
+moved entirely into code (calculations 3/7 → 7/7 on automatic checks). It also invented a
+domestic hotel rate for an overseas trip until an explicit domestic-only rule was added.
+Remaining weaknesses are wording, not numbers: one misleading conclusion (M01) and two
+answers that infer instead of flagging a policy gap. Limits: one run per configuration
+(small-model output varies between runs), and the test set was written by the builder.
 
 ## Run it
 
-Requirements: Docker, about 20 GB of free disk, a DeepSeek API key and a SiliconFlow API key.
+Requirements: Docker, about 20 GB of free disk, and a SiliconFlow API key (only free models are used).
 
 1. Deploy Dify 1.17.1 with Docker Compose and add the two model providers
    ([docs/deployment-notes.md](docs/deployment-notes.md) lists the problems hit and their fixes).
@@ -81,7 +87,7 @@ Requirements: Docker, about 20 GB of free disk, a DeepSeek API key and a Silicon
 5. Tests and evaluation:
 
    ```bash
-   cd service && uv run pytest            # 23 unit tests, no database needed
+   cd service && uv run pytest            # 28 unit tests, no database needed
    cd .. && python eval/run_eval.py --label run1 --target service
    ```
 

@@ -10,11 +10,6 @@ dependencies:
 - current_identifier: null
   type: marketplace
   value:
-    marketplace_plugin_unique_identifier: langgenius/deepseek:0.0.24@9e12eef09973667f0eaf4f082af883167e1de88740b22e71e71488d020c3778a
-    version: null
-- current_identifier: null
-  type: marketplace
-  value:
     marketplace_plugin_unique_identifier: langgenius/siliconflow:0.0.61@f0952b183715405503a23ccef015e5d43948591fd10b60690f24c07873eed723
     version: null
 kind: app
@@ -120,10 +115,12 @@ workflow:
             size: 6
         model:
           completion_params:
+            enable_thinking: true
             temperature: 0.3
+            thinking_budget: 1024
           mode: chat
-          name: deepseek-v4-flash
-          provider: langgenius/deepseek/deepseek
+          name: Qwen/Qwen3-8B
+          provider: langgenius/siliconflow/siliconflow
         prompt_template:
         - role: system
           text: '你是《Python 程序设计基础》课程的助教，面向高职一年级学生（演示系统，讲义为虚构）。
