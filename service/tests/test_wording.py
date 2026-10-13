@@ -220,3 +220,55 @@ def test_v2_partial_meal_halving_is_kept():
     from app.wording import v1_partial_meal_gap
     answer = "结论：当天伙食补助费减半，即 60 元。"
     assert v1_partial_meal_gap(answer, "2026年10月出差，对方只安排了午饭，当天伙食补助怎么算？", TODAY) == answer
+
+
+def test_off_topic_citation_replaced_by_topic_clauses():
+    # H12: business class question cited the hotel clause 第5条
+    out, removed = prune_citations("结论：公务舱超出经济舱的部分个人自理。\n依据：〔FIN-TRAVEL v2 第5条〕", "坐飞机可以买公务舱吧，学校都能报？", TODAY)
+    assert removed == ["FIN-TRAVEL v2 第5条"]
+    assert "依据：〔FIN-TRAVEL v2 第3条〕〔FIN-TRAVEL v2 第4条〕" in out
+
+
+def test_on_topic_citation_kept_and_nothing_added():
+    answer = "依据：〔FIN-TRAVEL v2 第4条〕"
+    assert prune_citations(answer, "高铁坐了商务座，超出二等座的部分能报吗？", TODAY) == (answer, [])
+
+
+def test_multi_topic_question_keeps_all_its_clauses():
+    answer = "依据：〔FIN-TRAVEL v2 第6条〕〔FIN-TRAVEL v2 第7条〕"
+    assert prune_citations(answer, "我听说住宿超标的部分可以用伙食补助抵扣，对吗？", TODAY) == (answer, [])
+
+
+def test_topic_clauses_use_version_in_force():
+    out, _ = prune_citations("结论：…\n依据：〔FIN-TRAVEL v1 第8条〕", "2026年3月去深圳出差，住宿标准是多少？", TODAY)
+    assert "〔FIN-TRAVEL v1 第5条〕〔FIN-TRAVEL v1 第6条〕" in out and "v2" not in out
+
+
+def test_question_without_topic_is_not_pruned_by_topic():
+    answer = "依据：〔FIN-TRAVEL v2 第7条〕"
+    assert prune_citations(answer, "会议注册费最多能报多少？", TODAY) == (answer, [])
+
+
+def test_personal_stay_gets_gap_conclusion_with_clauses():
+    from app.wording import personal_stay_conclusion
+    out = personal_stay_conclusion("结论：不可以。出差结束后自费延长的旅游天数不属于公务出差。", "出差结束后我自费多留两天旅游，这两天能领补助吗？", TODAY)
+    first = out.splitlines()[0]
+    assert first.startswith("结论：现行政策未对") and "〔FIN-TRAVEL v2 第7条〕" in first and "〔FIN-TRAVEL v2 第1条〕" in first
+
+
+def test_personal_stay_rule_ignores_unrelated_questions():
+    from app.wording import personal_stay_conclusion
+    answer = "结论：住宿每晚最多 550 元。"
+    assert personal_stay_conclusion(answer, "去上海旅游景点附近开会，住宿标准是多少？", TODAY) == answer
+
+
+def test_bare_no_kept_when_an_on_topic_clause_is_cited():
+    # M02: "不可以。" + 第2条 (approval) + body saying backfilling is not covered
+    answer = "结论：不可以。\n依据：〔FIN-TRAVEL v2 第2条〕\n政策未规定事后补审批的情形。"
+    assert fix_access_and_gap(answer, "staff", "出差前忘了审批，回来补一个审批就能报销吧？") == answer
+
+
+def test_no_clauses_added_under_a_gap_conclusion():
+    # H15: overseas meal allowance is not covered; dropping 第13条 must not add 第7/9条
+    out, removed = prune_citations("结论：现行政策未作规定\n依据：〔FIN-TRAVEL v1 第13条〕", "去台湾交流，伙食补助每天多少？", TODAY)
+    assert removed == ["FIN-TRAVEL v1 第13条"] and "第7条" not in out and "政策中没有与此直接对应的条款" in out

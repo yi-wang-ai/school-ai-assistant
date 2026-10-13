@@ -11,7 +11,7 @@ Applied in /ask after citation normalization and before the citation check:
 import re
 from datetime import date
 
-from .rules import AUDIT_ARTICLES, AUDIT_TOPICS, V1
+from .rules import AUDIT_ARTICLES, AUDIT_TOPICS, V1, V2, VERSIONS, version_for
 from .trip_parser import PART_MEALS, parse_trip
 
 RESTRICTED_CONCLUSION = "结论：该内容属于财务内部审核细则，普通教职工无权查看。如有疑问请联系财务处。"
@@ -52,6 +52,28 @@ GAP = "现行政策未作规定"
 NOT_COVERED = re.compile(r"未(?:作)?规定|未包含|未涉及|没有规定|未明确规定|不在.*范围")
 
 
+# Which FIN-TRAVEL clauses can support an answer on each topic (same numbering in v1 and v2).
+TOPIC_CLAUSES = [
+    (re.compile(r"飞机|机票|舱|高铁|动车|火车|座|轮船|交通工具|等级"), {3, 4}),
+    (re.compile(r"住宿|住了|房|酒店|宾馆|合住|晚"), {5, 6}),
+    (re.compile(r"伙食|餐|饭|用餐"), {7, 9}),
+    (re.compile(r"市内交通"), {8}),
+    (re.compile(r"审批|批准|审批单"), {2}),
+    (re.compile(r"期限|多久|几天内|多少天|来得及|逾期|过期"), {10}),
+    (re.compile(r"材料|票据|发票|清单|通知|行程单|需要准备|需要什么"), {11}),
+    (re.compile(r"适用|哪些人|学生|合同制|在编|范围"), {1}),
+]
+
+
+def question_topics(question: str) -> set[int]:
+    clauses: set[int] = set()
+    for pattern, arts in TOPIC_CLAUSES:
+        if pattern.search(question):
+            clauses |= arts
+    return clauses
+
+
+
 def fix_access_and_gap(answer: str, role: str, question: str) -> str:
     concl = CONCLUSION.search(answer)
     if role == "staff" and INTERNAL_TOPIC.search(question):
@@ -70,7 +92,8 @@ def fix_access_and_gap(answer: str, role: str, question: str) -> str:
     # A bare "不可以" while the answer itself says the policy does not cover it: the answer is the gap.
     concl = CONCLUSION.search(answer)
     says_gap = GAP in answer or (NOT_COVERED.search(answer) and "总计 **" not in answer)
-    if concl and says_gap and re.fullmatch(r"结论[:：]\s*(不可以|不能|不行|否)[。.]?\s*", concl.group()):
+    cites_rule = any(int(m.group(3)) in question_topics(question) for m in CITE.finditer(answer) if m.group(1) == "FIN-TRAVEL")
+    if concl and says_gap and not cites_rule and re.fullmatch(r"结论[:：]\s*(不可以|不能|不行|否)[。.]?\s*", concl.group()):
         answer = answer[:concl.start()] + "结论：" + GAP + "，建议联系财务处确认。" + answer[concl.end():]
     # "不可以，现行政策未作规定" -> "现行政策未作规定": a gap is not a no.
     concl = CONCLUSION.search(answer)
@@ -85,20 +108,50 @@ def _spans_change(question: str, today: date) -> bool:
     return bool(p.start and p.end and p.start < CHANGE_DATE <= p.end)
 
 
+def question_versions(question: str, today: date) -> list:
+    """Policy versions in force for the dates in the question (both when the trip spans the
+    change), falling back to a bare 年/月, then to today."""
+    p = parse_trip(question, today)
+    dates = [d for d in (p.start, p.end) if d]
+    if not dates:
+        m = re.search(r"(20\d{2})\s*年\s*(\d{1,2})\s*月", question)
+        dates = [date(int(m.group(1)), int(m.group(2)), 15)] if m else [today]
+    found = []
+    for d in dates:
+        try:
+            v = version_for(d)
+        except Exception:
+            continue
+        if v not in found:
+            found.append(v)
+    return found or [version_for(today)]
+
+
 def prune_citations(answer: str, question: str, today: date) -> tuple[str, list[str]]:
-    """Remove citations that cannot support the conclusion. Returns (answer, removed)."""
+    """Remove citations that cannot support the conclusion; if that leaves the public policy
+    uncited on a question with a known topic, cite the topic's clauses for the version in
+    force. Returns (answer, removed)."""
     keep_boiler = bool(BOILERPLATE_TOPIC.search(question))
     keep_split = _spans_change(question, today) or bool(SPLIT_TOPIC.search(question))
+    topics = question_topics(question)
     removed = []
 
     def drop(m):
         key = (m.group(1), m.group(2), int(m.group(3)))
-        if (key in BOILERPLATE and not keep_boiler) or (key == SPLIT and not keep_split):
+        off_topic = key[0] == "FIN-TRAVEL" and topics and key[2] not in topics and key not in BOILERPLATE and key != SPLIT
+        if (key in BOILERPLATE and not keep_boiler) or (key == SPLIT and not keep_split) or off_topic:
             removed.append(f"{key[0]} {key[1]} 第{key[2]}条")
             return ""
         return m.group(0)
 
     answer = CITE.sub(drop, answer)
+    concl = CONCLUSION.search(answer)
+    is_gap = bool(concl and (GAP in concl.group() or NOT_COVERED.search(concl.group())))
+    if topics and removed and not is_gap and not re.search(r"〔FIN-TRAVEL\s*v\d\s*第", answer):
+        # Every public citation was off-topic: cite the topic's clauses instead of leaving none.
+        added = "".join(f"〔FIN-TRAVEL {v.version} 第{a}条〕" for v in question_versions(question, today) for a in sorted(topics))
+        basis = BASIS.search(answer)
+        answer = (answer[:basis.start()] + "依据：" + added + basis.group(1) + answer[basis.end():]) if basis else answer + "\n依据：" + added
     # Tidy the basis line if removals left it with only separators.
     basis = BASIS.search(answer)
     if basis:  # tidy even when nothing was removed now (e.g. a dangling "及" from the model)
@@ -174,10 +227,28 @@ def v1_partial_meal_gap(answer: str, question: str, today: date) -> str:
     return (answer[:concl.start()] + V1_PARTIAL_MEAL + answer[concl.end():]) if concl else V1_PARTIAL_MEAL + "\n" + answer
 
 
+PERSONAL_STAY = re.compile(r"自费|私人|旅游|顺便|多留|多待|延长.*(停留|几天)|个人原因|提前.*(到|去)")
+PERSONAL_STAY_CONCLUSION = ("结论：现行政策未对出差结束后（或开始前）个人自费停留的期间作出规定。"
+                            "伙食补助和市内交通费按出差自然天数计算〔{v} 第7条〕〔{v} 第8条〕，办法只适用于因公出差〔{v} 第1条〕，"
+                            "个人停留期间通常不计入，具体请联系财务处确认。")
+
+
+def personal_stay_conclusion(answer: str, question: str, today: date) -> str:
+    """Private days around a business trip are not covered by the policy; say so, with the
+    clauses that define the counted days, instead of letting the model infer a bare answer."""
+    if not (PERSONAL_STAY.search(question) and re.search(r"补助|交通费|报|领", question)):
+        return answer
+    v = f"FIN-TRAVEL {question_versions(question, today)[0].version}"
+    text = PERSONAL_STAY_CONCLUSION.format(v=v)
+    concl = CONCLUSION.search(answer)
+    return (answer[:concl.start()] + text + answer[concl.end():]) if concl else text + "\n" + answer.lstrip()
+
+
 def clean(answer: str, role: str, question: str, today: date) -> tuple[str, list[str]]:
     answer = drop_needless_yes(answer, question)
     answer = fix_access_and_gap(answer, role, question)
     answer = reviewer_conclusion(answer, role, question)
     answer = approval_conclusion(answer, question)
     answer = v1_partial_meal_gap(answer, question, today)
+    answer = personal_stay_conclusion(answer, question, today)
     return prune_citations(answer, question, today)
