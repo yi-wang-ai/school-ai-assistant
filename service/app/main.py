@@ -168,9 +168,12 @@ def fix_conclusion_total(answer: str, question: str = "") -> tuple[str, bool]:
     warnings. The LLM's conclusion is dropped.
     Returns (answer, corrected) where corrected means the LLM's own amounts did not match."""
     valid = _valid_amounts(answer)
-    concl = CONCLUSION.search(answer)
-    if not valid or not concl or (question and not asks_amount(question)):
+    if not valid or (question and not asks_amount(question)):
         return answer, False
+    concl = CONCLUSION.search(answer)
+    if not concl:  # the model wrote no conclusion line: insert one at the top
+        answer = "结论：\n" + answer
+        concl = CONCLUSION.search(answer)
     stated = [float(x) for x in re.findall(r"(\d+(?:\.\d+)?)\s*\**\s*元", concl.group())]
     corrected = bool(stated) and not any(x in valid for x in stated)
     total = float(TOTAL_IN_TABLE.search(answer).group(1))

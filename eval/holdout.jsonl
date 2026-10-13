@@ -13,3 +13,5 @@
 {"id": "H11", "category": "misleading", "role": "staff", "question": "听说出差不超过5天就不用审批，是这样吗？", "expect": {"type": "answer", "key_facts": ["不对", "须事先审批", "未经审批不予报销"], "citations": ["FIN-TRAVEL v2 第2条"]}}
 {"id": "H12", "category": "misleading", "role": "staff", "question": "坐飞机可以买公务舱吧，学校都能报？", "expect": {"type": "answer", "key_facts": ["不能", "经济舱", "超出部分个人承担"], "citations": ["FIN-TRAVEL v2 第3条", "FIN-TRAVEL v2 第4条"]}}
 {"id": "H13", "category": "misleading", "role": "staff", "question": "伙食补助要凭餐饮发票才能报吧？", "expect": {"type": "answer", "key_facts": ["不需要", "包干使用，无需发票"], "citations": ["FIN-TRAVEL v2 第7条"]}}
+{"id": "H16", "category": "access", "role": "reviewer", "question": "住宿发票日期和出差审批日期对不上，审核时怎么办？", "expect": {"type": "answer", "key_facts": ["不一致超过1天", "要求报销人提供书面说明"], "citations": ["FIN-AUDIT v1 第1条"]}}
+{"id": "H17", "category": "access", "role": "reviewer", "question": "报销人因为住院逾期了才来报销，怎么处理？", "expect": {"type": "answer", "key_facts": ["不可抗力", "例外审批", "附证明材料"], "citations": ["FIN-AUDIT v1 第5条"]}}

@@ -123,3 +123,64 @@ def test_claimable_prefix_removed_for_non_yes_no_question():
 def test_not_claimable_gap_becomes_plain_gap():
     out = fix_access_and_gap("结论：不可以报销，现行政策未作规定\n依据：…", "staff", "出差时生病看病的费用怎么报销？")
     assert out.splitlines()[0] == "结论：现行政策未作规定"
+
+
+P03_RAW = ("依据：〔FIN-AUDIT v1 第4条〕\n计算：无金额计算需求。  \n\n"
+           "注：根据您提供的内部审核细则，单次差旅报销总额超过5000元需经院领导加签，但此规定仅适用于财务审核人员内部流程，报销人无法获知。")
+
+
+def test_reviewer_answer_without_conclusion_gets_article_text():
+    from app.wording import reviewer_conclusion
+    out = reviewer_conclusion(P03_RAW, "reviewer", "差旅报销超过多少钱需要院领导加签？")
+    assert out.splitlines()[0] == "结论：单次差旅报销总额超过 5000 元的，须经分管财务的院领导加签。〔FIN-AUDIT v1 第4条〕"
+    assert "无法获知" not in out
+
+
+def test_reviewer_article_matched_by_topic_when_not_cited():
+    from app.wording import reviewer_conclusion
+    out = reviewer_conclusion("结论：要退回。", "reviewer", "审核时如果同一晚有两张住宿发票会怎么处理？")
+    assert out.startswith("结论：同一出差人同一晚出现两张住宿发票的，退回并标记为重点复核。〔FIN-AUDIT v1 第2条〕")
+
+
+def test_staff_never_gets_article_text():
+    from app.wording import reviewer_conclusion
+    assert reviewer_conclusion(P03_RAW, "staff", "差旅报销超过多少钱需要院领导加签？") == P03_RAW
+
+
+def test_reviewer_public_question_untouched():
+    from app.wording import reviewer_conclusion
+    answer = "结论：住宿每晚最多 550 元。"
+    assert reviewer_conclusion(answer, "reviewer", "上海住宿标准是多少") == answer
+
+
+def test_amount_answer_without_conclusion_gets_one():
+    import os
+    os.environ.setdefault("SERVICE_TOKEN", "test-token")
+    from app.main import fix_conclusion_total
+    answer = "依据：…\n\n合计：住宿费 1100 元，伙食补助 360 元，市内交通 240 元；总计 **1700 元**"
+    fixed, _ = fix_conclusion_total(answer, "一共能报多少？")
+    assert fixed.startswith("结论：按规则服务计算，住宿费 1100 元") and "总计 1700 元" in fixed.splitlines()[0]
+
+
+def test_reviewer_late_claim_uses_cited_article_by_topic():
+    from app.wording import reviewer_conclusion
+    answer = "结论：可以申请。\n依据：〔FIN-TRAVEL v2 第10条〕〔FIN-AUDIT v1 第5条〕"
+    out = reviewer_conclusion(answer, "reviewer", "报销人因为住院逾期了才来报销，怎么处理？")
+    assert out.startswith("结论：逾期报销确因不可抗力的，审核人员可在系统中发起例外审批，但须附证明材料。〔FIN-AUDIT v1 第5条〕")
+
+
+def test_reviewer_public_question_with_irrelevant_audit_citation_untouched():
+    from app.wording import reviewer_conclusion
+    answer = "结论：上海每晚 550 元。\n依据：〔FIN-TRAVEL v2 第5条〕〔FIN-AUDIT v1 第2条〕"
+    assert reviewer_conclusion(answer, "reviewer", "上海住宿标准是多少？") == answer
+
+
+def test_late_claim_handling_is_internal_topic_for_reviewer_without_citation():
+    from app.wording import reviewer_conclusion
+    out = reviewer_conclusion("结论：可以申请例外审批，但需提供住院证明材料。", "reviewer", "报销人因为住院逾期了才来报销，怎么处理？")
+    assert "〔FIN-AUDIT v1 第5条〕" in out.splitlines()[0]
+
+
+def test_staff_late_claim_question_is_refused_as_internal():
+    out = fix_access_and_gap("结论：不可以。\n依据：〔FIN-TRAVEL v2 第10条〕", "staff", "我逾期了，报销还能怎么处理？")
+    assert out.splitlines()[0] == RESTRICTED_CONCLUSION

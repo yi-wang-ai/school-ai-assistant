@@ -11,6 +11,7 @@ Applied in /ask after citation normalization and before the citation check:
 import re
 from datetime import date
 
+from .rules import AUDIT_ARTICLES, AUDIT_TOPICS
 from .trip_parser import parse_trip
 
 RESTRICTED_CONCLUSION = "结论：该内容属于财务内部审核细则，普通教职工无权查看。如有疑问请联系财务处。"
@@ -46,7 +47,7 @@ def drop_needless_yes(answer: str, question: str) -> str:
 
 # Questions about the reviewer-only audit guide (FIN-AUDIT). Decided from the question, not the
 # answer: the small model also writes "无权查看" for public topics it cannot answer.
-INTERNAL_TOPIC = re.compile(r"审核(?!通过)|加签|复核|核减|例外审批|审批日期|院领导|两张.*发票|内部细则|审核细则")
+INTERNAL_TOPIC = re.compile(r"审核(?!通过)|加签|复核|核减|例外审批|审批日期|院领导|两张.*发票|内部细则|审核细则|不可抗力|逾期.*(处理|怎么办|还能|能不能|可以)")
 GAP = "现行政策未作规定"
 
 
@@ -108,7 +109,35 @@ def prune_citations(answer: str, question: str, today: date) -> tuple[str, list[
     return answer, removed
 
 
+AUDIT_CITE = re.compile(r"〔FIN-AUDIT\s*v1\s*([^〕]*)〕")
+REVIEWER_NOISE = re.compile(r"无法获知|不得向报销人公开|报销人无权|普通教职工")
+
+
+def reviewer_conclusion(answer: str, role: str, question: str) -> str:
+    """Reviewer questions about the audit guide: the conclusion is the article text itself.
+    A cited FIN-AUDIT article is used if the question is clearly about internal auditing or
+    the article's topic matches the question; otherwise the article is matched by topic."""
+    if role != "reviewer":
+        return answer
+    internal = bool(INTERNAL_TOPIC.search(question))
+    cited = sorted({int(a) for inner in AUDIT_CITE.findall(answer) for a in re.findall(r"第\s*(\d+)\s*条", inner)
+                    if int(a) in AUDIT_ARTICLES})
+    arts = [n for n in cited if internal or re.search(AUDIT_TOPICS[n], question)]
+    if not arts and internal:
+        arts = [n for n, pattern in AUDIT_TOPICS.items() if re.search(pattern, question)]
+    if not arts:
+        return answer
+    text = "结论：" + "".join(f"{AUDIT_ARTICLES[n]}〔FIN-AUDIT v1 第{n}条〕" for n in arts)
+    lines = [l for l in answer.split("\n") if not REVIEWER_NOISE.search(l)]
+    body = "\n".join(lines)
+    concl = CONCLUSION.search(body)
+    if concl:
+        return body[:concl.start()] + text + body[concl.end():]
+    return text + "\n" + body.lstrip()
+
+
 def clean(answer: str, role: str, question: str, today: date) -> tuple[str, list[str]]:
     answer = drop_needless_yes(answer, question)
     answer = fix_access_and_gap(answer, role, question)
+    answer = reviewer_conclusion(answer, role, question)
     return prune_citations(answer, question, today)

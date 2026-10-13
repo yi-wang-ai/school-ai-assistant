@@ -76,3 +76,20 @@ def city_tier(city: str) -> int:
     if city in TIER2:
         return 2
     return 3
+
+# Reviewer-only audit guide (data/policies/audit_guide_internal.md), verbatim. Used to write the
+# conclusion of reviewer answers; never shown to staff (see wording.py and citations.py).
+AUDIT_ARTICLES = {
+    1: "住宿发票开具日期与出差审批日期不一致超过 1 天的，须要求报销人提供书面说明。",
+    2: "同一出差人同一晚出现两张住宿发票的，退回并标记为重点复核。",
+    3: "伙食补助天数超过审批出差天数的，按审批天数核减。",
+    4: "单次差旅报销总额超过 5000 元的，须经分管财务的院领导加签。",
+    5: "逾期报销确因不可抗力的，审核人员可在系统中发起例外审批，但须附证明材料。",
+}
+AUDIT_TOPICS = {  # used only when the model cited no FIN-AUDIT article
+    1: r"发票.*日期|日期.*(不一致|对不上|差)|书面说明",
+    2: r"两张.*发票|重复.*发票|同一晚",
+    3: r"天数|核减",
+    4: r"加签|院领导|5000|五千|金额.*(大|超过|多少)",
+    5: r"逾期|不可抗力|例外审批|过期",
+}
