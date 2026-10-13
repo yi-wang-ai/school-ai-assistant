@@ -110,6 +110,40 @@ Trade-off: the free model costs nothing per question but is slower (36 s vs 19 s
 reliable in wording; the paid model reached 39/39. Model output varies between runs, so a
 single run per configuration is weak evidence.
 
+## Second round of fixes and a held-out set (2026-10-13)
+
+Before changing anything, 15 new questions were written (`holdout.jsonl`), phrased differently
+from the main set, with expected answers fixed in advance. They were not used to tune.
+
+| | Main 39 (manual) | Held-out 15 (manual) | Median latency |
+|---|---|---|---|
+| Before this round (`free-final`, `holdout-before`) | 36/39, 2 debatable, 1 fail | 13/15 | 36 s |
+| After (`fix2`, `holdout-after`) | **38/39, 1 debatable** | **15/15** | 35 s |
+
+Changes:
+- **Trip parser** (`service/app/trip_parser.py`, 18 tests): reads dates, nights, prices, city
+  and provided meals from the question with rules; whatever it finds overrides the LLM's
+  extraction. Fixes V04 (end date misread) and H04 (wrong day marked as partial meals). A
+  Dify code node now builds the request with `json.dumps`, so quotes or line breaks in a
+  question cannot break it.
+- **Conclusion rules** in the prompt: answer yes/no whenever a clause decides it; say
+  "未作规定" only when no clause covers the matter; a fixed sentence for internal content.
+  Fixes M01 and held-out H11 (both had said "not covered").
+- **Citation normalization:** a citation without a version (e.g. 〔FIN-AUDIT 内部细则 第2条〕)
+  used to be skipped by the checker. Now it is completed when the document has one version
+  and flagged as malformed otherwise.
+
+A bug found while reviewing: the conclusion-total check compared the conclusion with the
+grand total only, so for "伙食补助一共多少" it replaced the correct meal subtotal with
+meals + transport (all 7 corrections in the audit log were of this kind). It now accepts
+subtotals and sums of two subtotals; C07, V04 and H04 were re-run after the fix (noted in
+their `manual` field).
+
+Still wrong after this round, all wording rather than numbers or access: P02 concludes
+"不可以，现行政策未作规定" where the rule asks for "无权查看" only; P03 (reviewer) ends with a
+stray "staff cannot view this" note; N01 and M04 cite clauses unrelated to the question. The
+keyword grader passes all four, so the totals above count them as passes.
+
 Limits of this evaluation: 39 questions written by the same person who built the system;
 keyword grading needs manual review; one run per configuration (LLM output varies between
 runs).

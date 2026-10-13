@@ -48,20 +48,6 @@ workflow:
         isInLoop: false
         iteration_id: null
         loop_id: null
-        sourceType: parameter-extractor
-        targetType: http-request
-      id: extract-source-http_calc
-      source: extract
-      sourceHandle: source
-      target: http_calc
-      targetHandle: target
-      type: custom
-      zIndex: 0
-    - data:
-        isInIteration: false
-        isInLoop: false
-        iteration_id: null
-        loop_id: null
         sourceType: knowledge-retrieval
         targetType: llm
       id: kr_internal-source-llm_reviewer
@@ -183,6 +169,20 @@ workflow:
       target: role_check
       targetHandle: target
       type: custom
+    - data: {}
+      id: extract-source-build_payload
+      source: extract
+      sourceHandle: source
+      target: build_payload
+      targetHandle: target
+      type: custom
+    - data: {}
+      id: build_payload-source-http_calc
+      source: build_payload
+      sourceHandle: source
+      target: http_calc
+      targetHandle: target
+      type: custom
     nodes:
     - data:
         answer: '{{#llm_reviewer.text#}}{{#format_calc.md#}}'
@@ -193,10 +193,10 @@ workflow:
       height: 90
       id: ans_reviewer
       position:
-        x: 2780
+        x: 3080
         y: 180
       positionAbsolute:
-        x: 2780
+        x: 3080
         y: 180
       sourcePosition: null
       targetPosition: null
@@ -212,10 +212,10 @@ workflow:
       height: 90
       id: ans_staff
       position:
-        x: 2480
+        x: 2780
         y: 460
       positionAbsolute:
-        x: 2480
+        x: 2780
         y: 460
       sourcePosition: null
       targetPosition: null
@@ -295,7 +295,7 @@ workflow:
           data:
           - key: ''
             type: text
-            value: '{"is_calculation":"{{#extract.is_calculation#}}","city":"{{#extract.city#}}","start":"{{#extract.start#}}","end":"{{#extract.end#}}","nights":"{{#extract.nights#}}","hotel_price":"{{#extract.hotel_price#}}","hotel_nights":"{{#extract.hotel_nights#}}","meals_provided":"{{#extract.meals_provided#}}","claim_date":"{{#today.today#}}"}'
+            value: '{{#build_payload.payload#}}'
           type: json
         default_value:
         - key: body
@@ -328,10 +328,10 @@ workflow:
         variables: []
       id: http_calc
       position:
-        x: 1280
+        x: 1580
         y: 300
       positionAbsolute:
-        x: 1280
+        x: 1580
         y: 300
       sourcePosition: null
       targetPosition: null
@@ -357,10 +357,10 @@ workflow:
       height: 90
       id: kr_internal
       position:
-        x: 2180
+        x: 2480
         y: 180
       positionAbsolute:
-        x: 2180
+        x: 2480
         y: 180
       sourcePosition: null
       targetPosition: null
@@ -431,6 +431,9 @@ workflow:
             \ total 完全一致；如有 warnings 或 gaps，用一句话提醒用户看明细表中的提示。\n   - 状态以 not_calculated\
             \ 开头时：说明无法计算的原因（冒号后的内容），不要自行估算。\n   - 状态为 skipped 或 service_error 时：按政策原文回答，需要计算时逐项列出计算过程。\n\
             10. 两版差旅办法只规定国内出差。凡涉及境外（外国、港澳台）出差的标准，一律回答\"现行政策未作规定\"并建议联系财务处，绝不能套用国内地区标准。\n\
+            11. 结论的写法（非常重要）：\n   - 政策条款能直接推出是或否时，结论第一句必须直接回答“可以/不可以/是/不是/对/不对”，即使条款没有逐字提到用户的说法。例如条款规定“超标部分个人自理”，那么“超标部分能不能用别的补助抵扣”的结论是“不能，超标部分个人自理”。\n\
+            \   - 只有当条款完全没有涉及这件事时，结论才写“现行政策未作规定”，并建议联系财务处；这时不要再自己推断结果。\n   - 问题涉及内部审核口径而你无权提供时，结论只写“该内容属于财务内部审核细则，普通教职工无权查看”，不要写“未作规定”。\n\
+            \   - 每个引用必须写成完整格式〔文件编号 版本 第N条〕，例如〔FIN-TRAVEL v2 第5条〕、〔FIN-AUDIT v1 第3条〕，不要省略版本号，只引用和结论直接相关的条款。\n\
             \n<计算服务结果>\n{{#http_calc.body#}}\n</计算服务结果>\n\n回答格式：\n结论：一句话\n依据：引用条款\n\
             计算：（仅涉及金额时）\n\n你当前服务的用户角色：财务审核人员。你可以使用下面的内部审核细则。\n\n<内部审核细则>\n{{#kr_internal.result#}}\n\
             </内部审核细则>\n\n<公开政策>\n{{#context#}}\n</公开政策>"
@@ -442,10 +445,10 @@ workflow:
       height: 90
       id: llm_reviewer
       position:
-        x: 2480
+        x: 2780
         y: 180
       positionAbsolute:
-        x: 2480
+        x: 2780
         y: 180
       sourcePosition: null
       targetPosition: null
@@ -486,6 +489,9 @@ workflow:
             \ total 完全一致；如有 warnings 或 gaps，用一句话提醒用户看明细表中的提示。\n   - 状态以 not_calculated\
             \ 开头时：说明无法计算的原因（冒号后的内容），不要自行估算。\n   - 状态为 skipped 或 service_error 时：按政策原文回答，需要计算时逐项列出计算过程。\n\
             10. 两版差旅办法只规定国内出差。凡涉及境外（外国、港澳台）出差的标准，一律回答\"现行政策未作规定\"并建议联系财务处，绝不能套用国内地区标准。\n\
+            11. 结论的写法（非常重要）：\n   - 政策条款能直接推出是或否时，结论第一句必须直接回答“可以/不可以/是/不是/对/不对”，即使条款没有逐字提到用户的说法。例如条款规定“超标部分个人自理”，那么“超标部分能不能用别的补助抵扣”的结论是“不能，超标部分个人自理”。\n\
+            \   - 只有当条款完全没有涉及这件事时，结论才写“现行政策未作规定”，并建议联系财务处；这时不要再自己推断结果。\n   - 问题涉及内部审核口径而你无权提供时，结论只写“该内容属于财务内部审核细则，普通教职工无权查看”，不要写“未作规定”。\n\
+            \   - 每个引用必须写成完整格式〔文件编号 版本 第N条〕，例如〔FIN-TRAVEL v2 第5条〕、〔FIN-AUDIT v1 第3条〕，不要省略版本号，只引用和结论直接相关的条款。\n\
             \n<计算服务结果>\n{{#http_calc.body#}}\n</计算服务结果>\n\n回答格式：\n结论：一句话\n依据：引用条款\n\
             计算：（仅涉及金额时）\n\n你当前服务的用户角色：普通教职工。你没有内部审核细则的访问权限；用户询问审核口径、加签标准、内部审核流程等内部规定时，回答\"\
             该内容属于财务内部审核细则，普通教职工无权查看\"，不要推测。\n\n<公开政策>\n{{#context#}}\n</公开政策>"
@@ -497,10 +503,10 @@ workflow:
       height: 90
       id: llm_staff
       position:
-        x: 2180
+        x: 2480
         y: 460
       positionAbsolute:
-        x: 2180
+        x: 2480
         y: 460
       sourcePosition: null
       targetPosition: null
@@ -526,10 +532,10 @@ workflow:
       height: 90
       id: role_check
       position:
-        x: 1880
+        x: 2180
         y: 300
       positionAbsolute:
-        x: 1880
+        x: 2180
         y: 300
       sourcePosition: null
       targetPosition: null
@@ -614,10 +620,79 @@ workflow:
       height: 90
       id: format_calc
       position:
-        x: 1580
+        x: 1880
         y: 300
       positionAbsolute:
-        x: 1580
+        x: 1880
+        y: 300
+      type: custom
+      width: 244
+    - data:
+        code: "import json\n\n\ndef main(is_calculation: str, city: str, start: str,\
+          \ end: str, nights: str, meals_provided: str, hotel_price: str, hotel_nights:\
+          \ str, question: str, today: str) -> dict:\n    # json.dumps escapes quotes\
+          \ and line breaks in the user's question\n    payload = {\"is_calculation\"\
+          : is_calculation or \"\", \"city\": city or \"\", \"start\": start or \"\
+          \", \"end\": end or \"\", \"nights\": nights or \"\", \"meals_provided\"\
+          : meals_provided or \"\", \"hotel_price\": hotel_price or \"\", \"hotel_nights\"\
+          : hotel_nights or \"\", \"question\": question, \"claim_date\": today}\n\
+          \    return {\"payload\": json.dumps(payload, ensure_ascii=False)}\n"
+        code_language: python3
+        outputs:
+          payload:
+            children: null
+            type: string
+        selected: false
+        title: 组装请求
+        type: code
+        variables:
+        - value_selector:
+          - extract
+          - is_calculation
+          variable: is_calculation
+        - value_selector:
+          - extract
+          - city
+          variable: city
+        - value_selector:
+          - extract
+          - start
+          variable: start
+        - value_selector:
+          - extract
+          - end
+          variable: end
+        - value_selector:
+          - extract
+          - nights
+          variable: nights
+        - value_selector:
+          - extract
+          - meals_provided
+          variable: meals_provided
+        - value_selector:
+          - extract
+          - hotel_price
+          variable: hotel_price
+        - value_selector:
+          - extract
+          - hotel_nights
+          variable: hotel_nights
+        - value_selector:
+          - sys
+          - query
+          variable: question
+        - value_selector:
+          - today
+          - today
+          variable: today
+      height: 90
+      id: build_payload
+      position:
+        x: 1280
+        y: 300
+      positionAbsolute:
+        x: 1280
         y: 300
       type: custom
       width: 244

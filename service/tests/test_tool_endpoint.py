@@ -94,3 +94,23 @@ def test_llm_per_night_prices_kept_when_they_differ():
 
 def test_policy_question_is_skipped():
     assert post({"is_calculation": "no", "question": "现在出差伙食补助每天多少钱？"}).json() == {"ok": False, "skipped": True}
+
+
+def test_item_subtotal_in_conclusion_is_kept():
+    # "伙食补助一共多少？" -> the model answers the meal subtotal, not the grand total
+    from app.main import fix_conclusion_total
+    answer = "结论：伙食补助一共 180 元。\n\n合计：伙食补助 180 元，市内交通 160 元；总计 **340 元**"
+    assert fix_conclusion_total(answer) == (answer, False)
+
+
+def test_sum_of_two_subtotals_is_kept():
+    from app.main import fix_conclusion_total
+    answer = "结论：两项共 480 元。\n\n合计：住宿费 500 元，伙食补助 240 元，市内交通 240 元；总计 **980 元**"
+    assert fix_conclusion_total(answer) == (answer, False)
+
+
+def test_amount_matching_nothing_is_replaced():
+    from app.main import fix_conclusion_total
+    answer = "结论：伙食补助一共 200 元。\n\n合计：伙食补助 180 元，市内交通 160 元；总计 **340 元**"
+    fixed, corrected = fix_conclusion_total(answer)
+    assert corrected and "340" in fixed.splitlines()[0]

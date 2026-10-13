@@ -64,13 +64,17 @@ does not cover, access control and misleading questions. Details in [eval/README
 | Dify only | paid (DeepSeek) | 37/39 | – |
 | Dify + rules service | paid (DeepSeek) | 39/39 | 19 s |
 | Dify + rules service, model copies numbers | free (Qwen3-8B) | 29/39 on automatic checks | 36 s |
-| **Current: + code-rendered amounts, total check, domestic-only rule** | **free (Qwen3-8B)** | **36/39, 2 debatable, 1 fail** | **36 s** |
+| + code-rendered amounts, total check, domestic-only rule | free (Qwen3-8B) | 36/39, 2 debatable, 1 fail | 36 s |
+| **Current: + rule-based trip parser, conclusion rules, citation normalization** | **free (Qwen3-8B)** | **38/39, 1 debatable; held-out 15/15** | **35 s** |
 
 What moving to the free 8B model showed: it miscopied and invented numbers, so amounts were
 moved entirely into code (calculations 3/7 → 7/7 on automatic checks). It also invented a
 domestic hotel rate for an overseas trip until an explicit domestic-only rule was added.
-Remaining weaknesses are wording, not numbers: one misleading conclusion (M01) and two
-answers that infer instead of flagging a policy gap. Limits: one run per configuration
+The last round moved trip-detail reading into code too (a rule-based parser overrides the
+LLM's extraction), tightened when a conclusion may say "not covered", and made citations
+without a version fail the check. A held-out set of 15 new questions, written before these
+changes and not used to tune them, went from 13/15 to 15/15. One answer remains debatable
+(N05: it infers "no" while saying the policy is not explicit). Limits: one run per configuration
 (small-model output varies between runs), and the test set was written by the builder.
 
 Course app: on the free model, 11 of 12 lab-task requests got a complete solution despite the
@@ -96,7 +100,7 @@ Requirements: Docker, about 20 GB of free disk, and a SiliconFlow API key (only 
 5. Tests and evaluation:
 
    ```bash
-   cd service && uv run pytest            # 28 unit tests, no database needed
+   cd service && uv run pytest            # 57 unit tests, no database needed
    cd .. && python eval/run_eval.py --label run1 --target service
    ```
 

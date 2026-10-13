@@ -127,16 +127,37 @@ ASKS_AMOUNT = re.compile(r"多少|能报|可报|报销|一共|合计|总共|算�
 
 
 TOTAL_IN_TABLE = re.compile(r"总计 \*\*(\d+(?:\.\d+)?) 元\*\*")
+SUBTOTAL_LINE = re.compile(r"^合计：(.*?)；总计", re.M)
 CONCLUSION = re.compile(r"^结论[:：].*$", re.M)
 
 
-def fix_conclusion_total(answer: str) -> tuple[str, bool]:
-    """If the LLM's conclusion states a total that differs from the code-computed one,
-    replace the conclusion. Returns (answer, corrected)."""
+def _valid_amounts(answer: str) -> set[float]:
+    """Totals the conclusion may legitimately state: the grand total, each item's subtotal,
+    and any two subtotals added (e.g. "伙食补助和市内交通一共多少")."""
     table = TOTAL_IN_TABLE.search(answer)
+    if not table:
+        return set()
+    valid = {float(table.group(1))}
+    line = SUBTOTAL_LINE.search(answer)
+    subs = [float(x) for x in re.findall(r"(\d+(?:\.\d+)?) 元", line.group(1))] if line else []
+    valid.update(subs)
+    valid.update(a + b for i, a in enumerate(subs) for b in subs[i + 1:])
+    return valid
+
+
+def fix_conclusion_total(answer: str) -> tuple[str, bool]:
+    """If the conclusion states amounts and none of them matches the computed total or a
+    subtotal, replace the conclusion. Returns (answer, corrected)."""
+    valid = _valid_amounts(answer)
     concl = CONCLUSION.search(answer)
-    if not table or not concl:
+    if not valid or not concl:
         return answer, False
+    stated = [float(x) for x in re.findall(r"(\d+(?:\.\d+)?)\s*\**\s*元", concl.group())]
+    if stated and not any(x in valid for x in stated):
+        total = float(TOTAL_IN_TABLE.search(answer).group(1))
+        fixed = f"结论：按规则服务计算，可报销总计 {total:g} 元，各项金额见下表。（系统已更正：原回答中的金额与计算结果不一致）"
+        return answer[:concl.start()] + fixed + answer[concl.end():], True
+    return answer, False
     total = float(table.group(1))
     stated = [float(x) for x in re.findall(r"(\d+(?:\.\d+)?)\s*\**\s*元", concl.group())]
     if stated and total not in stated:
