@@ -27,7 +27,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-REFUSAL_MARKERS = ["未作规定", "未规定", "没有规定", "未作明确规定", "未作出规定", "作出明确规定", "无权查看", "无权审批", "拒绝", "无法提供", "不能提供", "无法给出"]
+REFUSAL_MARKERS = ["未作规定", "未规定", "没有规定", "未作明确规定", "未作出规定", "作出明确规定", "无权查看", "无权审批", "不能审批", "不能批准", "无法审批", "拒绝", "无法提供", "不能提供", "无法给出"]
 
 
 def load_env():

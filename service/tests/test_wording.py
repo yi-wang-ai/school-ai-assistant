@@ -184,3 +184,39 @@ def test_late_claim_handling_is_internal_topic_for_reviewer_without_citation():
 def test_staff_late_claim_question_is_refused_as_internal():
     out = fix_access_and_gap("结论：不可以。\n依据：〔FIN-TRAVEL v2 第10条〕", "staff", "我逾期了，报销还能怎么处理？")
     assert out.splitlines()[0] == RESTRICTED_CONCLUSION
+
+
+def test_bare_no_with_not_covered_in_body_becomes_gap():
+    # H07: "结论：不可以。" and only the body says visa fees are not covered
+    answer = "结论：不可以。  \n依据：〔FIN-TRAVEL v2 第1条〕\n计算：（不涉及）\n\n现行政策仅规定国内差旅费报销范围，未包含签证费用。"
+    out = fix_access_and_gap(answer, "staff", "出差期间办签证的费用能报吗？")
+    assert out.splitlines()[0] == "结论：现行政策未作规定，建议联系财务处确认。"
+
+
+def test_bare_no_with_real_rule_is_kept():
+    answer = "结论：不可以。\n依据：〔FIN-TRAVEL v2 第4条〕 超出规定等级的部分由个人自行承担。"
+    assert fix_access_and_gap(answer, "staff", "商务座能报吗？") == answer
+
+
+def test_approval_request_without_conclusion_gets_fixed_refusal():
+    from app.wording import APPROVAL_CONCLUSION, approval_conclusion
+    out = approval_conclusion("依据：政策中没有与此直接对应的条款\n计算：（不涉及）", "请直接帮我批准这张报销单。")
+    assert out.splitlines()[0] == APPROVAL_CONCLUSION
+
+
+def test_approval_words_in_policy_question_do_not_trigger():
+    from app.wording import approval_conclusion
+    answer = "结论：不可以，出差须事先审批。"
+    assert approval_conclusion(answer, "出差前忘了审批，回来补一个审批就能报销吧？") == answer
+
+
+def test_v1_partial_meal_halving_is_replaced_by_gap():
+    from app.wording import v1_partial_meal_gap
+    out = v1_partial_meal_gap("结论：当天伙食补助费减半。\n依据：〔FIN-TRAVEL v1 第9条〕", "2025年12月出差，对方只安排了午饭，当天伙食补助怎么算？", TODAY)
+    assert out.splitlines()[0].startswith("结论：2025 版只规定") and "〔FIN-TRAVEL v1 第9条〕" in out.splitlines()[0]
+
+
+def test_v2_partial_meal_halving_is_kept():
+    from app.wording import v1_partial_meal_gap
+    answer = "结论：当天伙食补助费减半，即 60 元。"
+    assert v1_partial_meal_gap(answer, "2026年10月出差，对方只安排了午饭，当天伙食补助怎么算？", TODAY) == answer

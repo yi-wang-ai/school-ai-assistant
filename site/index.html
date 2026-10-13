@@ -91,7 +91,7 @@ footer{color:var(--muted);font-size:13px;padding:10px 0 40px}
   <p class="sub">面向职业院校行政、教学、科研场景，在私有化部署的 Dify 上搭建 3 个 AI 应用。核心应用回答差旅报销政策问题：大模型负责理解问题和组织语言，金额计算、版本选择、权限控制和审计留痕由自己编写的 Python 规则服务完成。</p>
   <div class="badges">
     <span class="badge">Dify 私有化部署</span><span class="badge">FastAPI + PostgreSQL</span>
-    <span class="badge">RAG：bge-m3 + 重排序 + 混合检索</span><span class="badge">110 个单元测试</span>
+    <span class="badge">RAG：bge-m3 + 重排序 + 混合检索</span><span class="badge">125 个单元测试</span>
     <span class="badge">39 题评测集</span><span class="badge">全部使用免费模型 API</span>
   </div>
   <div class="btns">
@@ -182,7 +182,7 @@ footer{color:var(--muted);font-size:13px;padding:10px 0 40px}
   <ul class="tight">
     <li>评测题由开发者本人编写；每种配置只运行一次，小模型每次输出会有差异。</li>
     <li>行程信息先由规则解析，解析不到的部分才用大模型提取；规则没覆盖的说法（例如每晚房价不同）仍可能提取错误。</li>
-    <li>措辞问题大部分由代码清理；仍有 1 条审核人员回答缺少“结论”行，公开记录未修。</li>
+    <li>措辞由代码清理；仍有一类问题代码不能判断：引用了存在但不相关的条款（留出集 1 例），以及是否应明确指出“政策未规定”（主集 1 例有争议）。</li>
     <li>免费模型比付费模型慢（中位 36 秒对 19 秒），措辞也更不稳定。</li>
   </ul>
   <p class="src">完整记录：<a href="https://github.com/yi-wang-ai/school-ai-assistant/tree/main/eval">eval/</a>（每题的回答原文、自动检查结果和人工复核意见）</p>

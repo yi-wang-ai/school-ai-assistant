@@ -11,8 +11,8 @@ Applied in /ask after citation normalization and before the citation check:
 import re
 from datetime import date
 
-from .rules import AUDIT_ARTICLES, AUDIT_TOPICS
-from .trip_parser import parse_trip
+from .rules import AUDIT_ARTICLES, AUDIT_TOPICS, V1
+from .trip_parser import PART_MEALS, parse_trip
 
 RESTRICTED_CONCLUSION = "结论：该内容属于财务内部审核细则，普通教职工无权查看。如有疑问请联系财务处。"
 NO_ACCESS = "无权查看"
@@ -49,6 +49,7 @@ def drop_needless_yes(answer: str, question: str) -> str:
 # answer: the small model also writes "无权查看" for public topics it cannot answer.
 INTERNAL_TOPIC = re.compile(r"审核(?!通过)|加签|复核|核减|例外审批|审批日期|院领导|两张.*发票|内部细则|审核细则|不可抗力|逾期.*(处理|怎么办|还能|能不能|可以)")
 GAP = "现行政策未作规定"
+NOT_COVERED = re.compile(r"未(?:作)?规定|未包含|未涉及|没有规定|未明确规定|不在.*范围")
 
 
 def fix_access_and_gap(answer: str, role: str, question: str) -> str:
@@ -66,9 +67,10 @@ def fix_access_and_gap(answer: str, role: str, question: str) -> str:
             continue
         out.append(line)
     answer = "\n".join(out)
-    # A bare "不可以" whose own basis says the policy does not cover it: the answer is the gap.
-    concl, basis = CONCLUSION.search(answer), BASIS.search(answer)
-    if concl and basis and GAP in basis.group() and re.fullmatch(r"结论[:：]\s*(不可以|不能|不行|否)[。.]?\s*", concl.group()):
+    # A bare "不可以" while the answer itself says the policy does not cover it: the answer is the gap.
+    concl = CONCLUSION.search(answer)
+    says_gap = GAP in answer or (NOT_COVERED.search(answer) and "总计 **" not in answer)
+    if concl and says_gap and re.fullmatch(r"结论[:：]\s*(不可以|不能|不行|否)[。.]?\s*", concl.group()):
         answer = answer[:concl.start()] + "结论：" + GAP + "，建议联系财务处确认。" + answer[concl.end():]
     # "不可以，现行政策未作规定" -> "现行政策未作规定": a gap is not a no.
     concl = CONCLUSION.search(answer)
@@ -136,8 +138,46 @@ def reviewer_conclusion(answer: str, role: str, question: str) -> str:
     return text + "\n" + body.lstrip()
 
 
+APPROVAL_REQUEST = re.compile(r"(帮我|直接|请)?(批准|审批通过|批一下|通过审批|审批一下|给我批)|批准这张|审批这张")
+APPROVAL_CONCLUSION = "结论：本助手只提供报销政策咨询，不能审批、批准或驳回报销单，请通过 OA 系统按正常流程提交审批。"
+
+
+def approval_conclusion(answer: str, question: str) -> str:
+    """A request to approve a claim gets a fixed refusal conclusion (prompt rule 6), whether or
+    not the model wrote a conclusion line."""
+    if not APPROVAL_REQUEST.search(question):
+        return answer
+    concl = CONCLUSION.search(answer)
+    if concl:
+        return answer[:concl.start()] + APPROVAL_CONCLUSION + answer[concl.end():]
+    return APPROVAL_CONCLUSION + "\n" + answer.lstrip()
+
+
+V1_PARTIAL_MEAL = f"结论：2025 版只规定接待单位统一安排用餐的当天不发伙食补助，没有规定只安排部分餐次如何处理，建议联系财务处确认。〔{V1.cite('meals_provided')}〕"
+
+
+def v1_partial_meal_gap(answer: str, question: str, today: date) -> str:
+    """The halving rule for partial meals exists only in v2 (rules.V2.partial_meal_half). If the
+    trip falls entirely under v1 and the model applied halving, state the gap instead."""
+    if V1.partial_meal_half or not PART_MEALS.search(question) or not re.search(r"减半|一半|50%|60 ?元", answer):
+        return answer
+    p = parse_trip(question, today)
+    dates = [d for d in (p.start, p.end) if d]
+    if not dates:  # try a bare year/month such as "2025年12月"
+        m = re.search(r"(20\d{2})\s*年\s*(\d{1,2})\s*月", question)
+        if not m:
+            return answer
+        dates = [date(int(m.group(1)), int(m.group(2)), 1)]
+    if max(dates) > V1.expires:
+        return answer
+    concl = CONCLUSION.search(answer)
+    return (answer[:concl.start()] + V1_PARTIAL_MEAL + answer[concl.end():]) if concl else V1_PARTIAL_MEAL + "\n" + answer
+
+
 def clean(answer: str, role: str, question: str, today: date) -> tuple[str, list[str]]:
     answer = drop_needless_yes(answer, question)
     answer = fix_access_and_gap(answer, role, question)
     answer = reviewer_conclusion(answer, role, question)
+    answer = approval_conclusion(answer, question)
+    answer = v1_partial_meal_gap(answer, question, today)
     return prune_citations(answer, question, today)

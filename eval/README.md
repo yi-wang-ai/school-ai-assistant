@@ -164,8 +164,30 @@ deadline questions being turned into calculations), both fixed before the live r
 - Six answers (A01, A03, V03, V04, H06, H08) were re-run live after the last two changes;
   marked with a `rerun` field.
 
-Still open: P03 (reviewer) came back without a 结论 line and with an odd note; code cannot
-write a reliable conclusion from that text, so it is documented rather than patched.
+## Fourth round: reviewer conclusions (2026-10-13)
+
+P03 had come back without a 结论 line. The audit guide is five short articles, so for a
+reviewer question about internal auditing the service now writes the conclusion from the
+cited (or topic-matched) article text (`rules.AUDIT_ARTICLES`, `wording.reviewer_conclusion`)
+and drops notes meant for claimants. Live check: 5 audit-guide questions × 2 runs, all with the
+right article; 2 of them added to the held-out set (H16, H17).
+
+The same run exposed two more model errors, both now handled in code: an approval request
+answered with no conclusion line (fixed refusal, `approval_conclusion`), and a 2025 trip given
+the 2026 half-allowance rule for partial meals (`v1_partial_meal_gap`, driven by
+`rules.V1.partial_meal_half`). A bare "不可以" with the gap stated only in the body is now
+rewritten as "未作规定" (H07).
+
+| | Main 39 (manual) | Held-out (manual) |
+|---|---|---|
+| Third round (`fix4`, `holdout-fix4`) | 39/39 | 15/15 |
+| Fourth round (`fix5`, `holdout-fix5`) | 38/39, 1 debatable (N05) | 17/17 |
+
+N05 passed in the third round and is debatable in this one: the model's wording varies between
+runs, and whether "no, a private extension is not business travel" counts as flagging the gap
+is a judgement call. H12 is correct but cites the hotel clause instead of the transport clause;
+a wrong-but-existing citation is not caught. The grader's refusal markers now include
+"不能审批/不能批准".
 
 Still wrong after the second round (now fixed above), all wording rather than numbers or access: P02 concludes
 "不可以，现行政策未作规定" where the rule asks for "无权查看" only; P03 (reviewer) ends with a
