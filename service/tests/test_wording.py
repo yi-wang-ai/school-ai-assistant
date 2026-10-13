@@ -272,3 +272,25 @@ def test_no_clauses_added_under_a_gap_conclusion():
     # H15: overseas meal allowance is not covered; dropping 第13条 must not add 第7/9条
     out, removed = prune_citations("结论：现行政策未作规定\n依据：〔FIN-TRAVEL v1 第13条〕", "去台湾交流，伙食补助每天多少？", TODAY)
     assert removed == ["FIN-TRAVEL v1 第13条"] and "第7条" not in out and "政策中没有与此直接对应的条款" in out
+
+
+def test_off_version_duplicate_citation_dropped_for_undated_question():
+    out, removed = prune_citations("依据：〔FIN-TRAVEL v2 第3条〕、〔FIN-TRAVEL v1 第3条〕", "坐飞机可以买公务舱吧，学校都能报？", TODAY)
+    assert removed == ["FIN-TRAVEL v1 第3条"] and out == "依据：〔FIN-TRAVEL v2 第3条〕"
+
+
+def test_only_citation_is_never_dropped_for_version():
+    answer = "依据：〔FIN-TRAVEL v1 第3条〕"
+    assert prune_citations(answer, "坐飞机可以买公务舱吧？", TODAY) == (answer, [])
+
+
+def test_both_versions_kept_for_cross_version_trip():
+    answer = "依据：〔FIN-TRAVEL v1 第7条〕、〔FIN-TRAVEL v2 第7条〕"
+    assert prune_citations(answer, "我2026年8月30日到9月2日出差，伙食补助一共多少？", TODAY) == (answer, [])
+
+
+def test_breakdown_table_citations_are_never_pruned():
+    answer = ("结论：按规则服务计算，伙食补助 440 元。\n依据：〔FIN-TRAVEL v2 第7条〕\n\n---\n**计算明细（规则服务自动计算）**\n"
+              "| 2026-08-30 | 市内交通 | 80 | 〔FIN-TRAVEL v1 第8条〕 |  |\n⚠ 已超过报销期限〔FIN-TRAVEL v2 第10条〕")
+    out, removed = prune_citations(answer, "我2026年8月30日到9月2日出差，伙食补助一共多少？", TODAY)
+    assert removed == [] and out == answer

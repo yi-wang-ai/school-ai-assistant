@@ -127,10 +127,17 @@ def question_versions(question: str, today: date) -> list:
     return found or [version_for(today)]
 
 
+BREAKDOWN = "\n---\n**计算明细"
+
+
 def prune_citations(answer: str, question: str, today: date) -> tuple[str, list[str]]:
     """Remove citations that cannot support the conclusion; if that leaves the public policy
     uncited on a question with a known topic, cite the topic's clauses for the version in
-    force. Returns (answer, removed)."""
+    force. The code-generated breakdown table is never touched. Returns (answer, removed)."""
+    if BREAKDOWN in answer:
+        head, tail = answer.split(BREAKDOWN, 1)
+        head, removed = prune_citations(head, question, today)
+        return head + BREAKDOWN + tail, removed
     keep_boiler = bool(BOILERPLATE_TOPIC.search(question))
     keep_split = _spans_change(question, today) or bool(SPLIT_TOPIC.search(question))
     topics = question_topics(question)
@@ -145,6 +152,18 @@ def prune_citations(answer: str, question: str, today: date) -> tuple[str, list[
         return m.group(0)
 
     answer = CITE.sub(drop, answer)
+    # Same article cited for a version not in force, next to the version in force: drop the extra.
+    in_force = {v.version for v in question_versions(question, today)}
+    cited = {(m.group(2), int(m.group(3))) for m in CITE.finditer(answer) if m.group(1) == "FIN-TRAVEL"}
+
+    def drop_off_version(m):
+        ver, art = m.group(2), int(m.group(3))
+        if m.group(1) == "FIN-TRAVEL" and ver not in in_force and any((v, art) in cited for v in in_force) and not keep_split:
+            removed.append(f"FIN-TRAVEL {ver} 第{art}条")
+            return ""
+        return m.group(0)
+
+    answer = CITE.sub(drop_off_version, answer)
     concl = CONCLUSION.search(answer)
     is_gap = bool(concl and (GAP in concl.group() or NOT_COVERED.search(concl.group())))
     if topics and removed and not is_gap and not re.search(r"〔FIN-TRAVEL\s*v\d\s*第", answer):

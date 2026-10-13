@@ -94,7 +94,8 @@ def conclusion(answer):
 
 def score(item, answer):
     exp = item["expect"]
-    refused = any(m in conclusion(answer) for m in REFUSAL_MARKERS)
+    concl = conclusion(answer)
+    refused = any(m in concl for m in REFUSAL_MARKERS) or bool(re.search(r"未对.{0,40}作出规定", concl))
     checks = {}
     if exp["type"] == "refuse":
         checks["refusal"] = refused
