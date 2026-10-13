@@ -20,6 +20,7 @@ from . import db
 from .calculator import CalcResult, PolicyGap, TripRequest, calculate, to_markdown
 from .citations import CitationCheck, check, normalize
 from .trip_parser import parse_trip
+from .wording import clean
 
 app = FastAPI(title="Reimbursement policy service")
 
@@ -54,6 +55,7 @@ class AskResponse(BaseModel):
     citation_check: CitationCheck
     blocked: bool
     total_corrected: bool = False
+    pruned_citations: list[str] = []
 
 
 class FeedbackRequest(BaseModel):
@@ -211,6 +213,7 @@ def ask(req: AskRequest, user=Depends(current_user)):
     data = r.json()
     answer = re.sub(r"<think>.*?</think>", "", data["answer"], flags=re.S).strip()
     answer = normalize(answer)
+    answer, pruned = clean(answer, user["role"], req.question, date.today())
     answer, corrected = fix_conclusion_total(answer)
 
     result = check(answer, user["role"])
@@ -225,7 +228,8 @@ def ask(req: AskRequest, user=Depends(current_user)):
 
     latency = int((time.monotonic() - t0) * 1000)
     audit_id = db.log_answer(user, req.question, answer, result, blocked, latency, data.get("message_id"), corrected)
-    return AskResponse(answer=answer, audit_id=audit_id, citation_check=result, blocked=blocked, total_corrected=corrected)
+    return AskResponse(answer=answer, audit_id=audit_id, citation_check=result, blocked=blocked, total_corrected=corrected,
+                       pruned_citations=pruned)
 
 
 @app.post("/feedback")
