@@ -139,7 +139,35 @@ meals + transport (all 7 corrections in the audit log were of this kind). It now
 subtotals and sums of two subtotals; C07, V04 and H04 were re-run after the fix (noted in
 their `manual` field).
 
-Still wrong after this round, all wording rather than numbers or access: P02 concludes
+## Third round: wording (2026-10-13)
+
+`service/app/wording.py` (17 tests) plus changes in `main.py`, all deterministic. Every rule
+was first replayed on the 54 recorded answers before deploying; the replay caught two bad
+rules (a "no access" rewrite that would have hit public "not covered" questions, and
+deadline questions being turned into calculations), both fixed before the live run.
+
+| | Main 39 (manual) | Held-out 15 (manual) |
+|---|---|---|
+| Before (`fix2`, `holdout-after`) | 38/39, 1 debatable | 15/15 |
+| After (`fix4`, `holdout-fix4`) | **39/39** | **15/15** |
+
+- Amount questions: the conclusion is written by code from the breakdown (items asked about
+  first, total, overdue / not-covered warnings).
+- Internal-audit questions are recognised from the question; staff get one fixed sentence.
+  Elsewhere a "普通教职工无权查看" claim is removed (the model also wrote it for public topics).
+- "不可以，现行政策未作规定" becomes "现行政策未作规定"; a leading "可以/不可以（报销），" is removed
+  when the question is not a yes/no question.
+- Citations of interpretation/effective-date clauses, and of the cross-version clause when
+  the trip does not span 2026-09-01, are removed.
+- Hotel nights from the LLM are ignored when the question mentions no lodging (V04 had two
+  invented nights, total ¥1460 instead of ¥760).
+- Six answers (A01, A03, V03, V04, H06, H08) were re-run live after the last two changes;
+  marked with a `rerun` field.
+
+Still open: P03 (reviewer) came back without a 结论 line and with an odd note; code cannot
+write a reliable conclusion from that text, so it is documented rather than patched.
+
+Still wrong after the second round (now fixed above), all wording rather than numbers or access: P02 concludes
 "不可以，现行政策未作规定" where the rule asks for "无权查看" only; P03 (reviewer) ends with a
 stray "staff cannot view this" note; N01 and M04 cite clauses unrelated to the question. The
 keyword grader passes all four, so the totals above count them as passes.

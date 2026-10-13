@@ -29,7 +29,7 @@ CHANGE_DATE = date(2026, 9, 1)
 
 
 YES_NO_QUESTION = re.compile(r"吗|吧[？?]?$|能不能|可不可以|是不是|对不对|行不行|是否|有没有")
-LEADING_YES = re.compile(r"^(结论[:：]\s*)(?:不可以|不能|不是|不对|可以|是的|是|对|否)[，,、]\s*")
+LEADING_YES = re.compile(r"^(结论[:：]\s*)(?:不可以|不能|不是|不对|可以|是的|是|对|否)(?:报销|报)?[，,、]\s*(?:但)?")
 
 
 def drop_needless_yes(answer: str, question: str) -> str:
@@ -72,7 +72,7 @@ def fix_access_and_gap(answer: str, role: str, question: str) -> str:
     # "不可以，现行政策未作规定" -> "现行政策未作规定": a gap is not a no.
     concl = CONCLUSION.search(answer)
     if concl and GAP in concl.group():
-        fixed = re.sub(r"^(结论[:：]\s*)(?:不可以|可以|不能|是|不是)[，,、]\s*(?=现行政策未作规定)", r"\1", concl.group())
+        fixed = re.sub(r"^(结论[:：]\s*)(?:不可以|可以|不能|是|不是)(?:报销|报)?[，,、]\s*(?=现行政策未作规定)", r"\1", concl.group())
         answer = answer[:concl.start()] + fixed + answer[concl.end():]
     return answer
 

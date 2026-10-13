@@ -113,3 +113,13 @@ def test_leading_no_removed_for_how_question():
     from app.wording import drop_needless_yes
     out = drop_needless_yes("结论：不可以，按审批天数核减。", "报销人申报的伙食补助天数比审批天数多，怎么处理？")
     assert out == "结论：按审批天数核减。"
+
+
+def test_claimable_prefix_removed_for_non_yes_no_question():
+    from app.wording import drop_needless_yes
+    assert drop_needless_yes("结论：可以报销，但需在出差结束后20日内办理。", "出差回来后多久之内必须报销？") == "结论：需在出差结束后20日内办理。"
+
+
+def test_not_claimable_gap_becomes_plain_gap():
+    out = fix_access_and_gap("结论：不可以报销，现行政策未作规定\n依据：…", "staff", "出差时生病看病的费用怎么报销？")
+    assert out.splitlines()[0] == "结论：现行政策未作规定"

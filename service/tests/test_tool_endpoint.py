@@ -137,3 +137,11 @@ def test_deadline_question_conclusion_is_left_to_the_model():
     from app.main import fix_conclusion_total
     answer = "结论：应在出差结束后 30 日内办理。\n\n合计：伙食补助 100 元；总计 **100 元**"
     assert fix_conclusion_total(answer, "报销期限是多少天？") == (answer, False)
+
+
+def test_invented_hotel_nights_ignored_when_question_has_no_lodging():
+    # V04: the LLM added two hotel nights to a question about meal allowance only
+    r = post({"is_calculation": "yes", "city": "某地", "start": "2026-08-30", "end": "2026-09-02",
+              "nights": "2026-08-30:540;2026-08-31:500", "claim_date": "2026-10-13",
+              "question": "我2026年8月30日到9月2日出差，伙食补助一共多少？"}).json()
+    assert r["result"]["totals"]["hotel"] == 0 and r["result"]["total"] == 760

@@ -110,7 +110,12 @@ def _consecutive(start: date, count: int, price: float) -> list[dict]:
     return [{"date": start + timedelta(days=i), "price": price} for i in range(count)]
 
 
+LODGING = re.compile(r"住|晚|房|酒店|宾馆")
+
+
 def _nights(req: ToolCalcRequest, start: date, end: date, parsed) -> tuple[list[dict], str]:
+    if req.question and not LODGING.search(req.question):
+        return [], "none"  # no hotel in the question: ignore any nights the LLM invented
     listed = [{"date": d, "price": float(p)} for d, p in _pairs(req.nights)]
     if listed and len({n["price"] for n in listed}) > 1:
         return listed, "llm"  # different price each night: only the LLM list has that detail
