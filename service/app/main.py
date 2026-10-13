@@ -18,7 +18,8 @@ from pydantic import BaseModel
 
 from . import db
 from .calculator import CalcResult, PolicyGap, TripRequest, calculate, to_markdown
-from .citations import CitationCheck, check
+from .citations import CitationCheck, check, normalize
+from .trip_parser import parse_trip
 
 app = FastAPI(title="Reimbursement policy service")
 
@@ -91,6 +92,7 @@ class ToolCalcRequest(BaseModel):
     hotel_price: str = ""
     hotel_nights: str = ""
     claim_date: str | None = None
+    question: str = ""          # the user's original question, read by trip_parser
 
 
 def _pairs(text: str) -> list[tuple[str, str]]:
@@ -102,16 +104,26 @@ def _number(text: str) -> float | None:
     return float(m.group()) if m else None
 
 
-def _nights(req: ToolCalcRequest) -> list[dict]:
-    listed = [{"date": d, "price": float(p)} for d, p in _pairs(req.nights)]
-    if listed:
-        return listed
-    price = _number(req.hotel_price)
-    if not price:
-        return []
-    start, end = date.fromisoformat(req.start), date.fromisoformat(req.end)
-    count = int(_number(req.hotel_nights) or (end - start).days)
+def _consecutive(start: date, count: int, price: float) -> list[dict]:
     return [{"date": start + timedelta(days=i), "price": price} for i in range(count)]
+
+
+def _nights(req: ToolCalcRequest, start: date, end: date, parsed) -> tuple[list[dict], str]:
+    listed = [{"date": d, "price": float(p)} for d, p in _pairs(req.nights)]
+    if listed and len({n["price"] for n in listed}) > 1:
+        return listed, "llm"  # different price each night: only the LLM list has that detail
+    if parsed.price and parsed.nights:
+        return _consecutive(start, parsed.nights, parsed.price), "parser"
+    if listed:
+        return listed, "llm"
+    price = _number(req.hotel_price) or parsed.price
+    if not price:
+        return [], "none"
+    count = parsed.nights or int(_number(req.hotel_nights) or (end - start).days)
+    return _consecutive(start, count, price), "parser" if parsed.price else "llm"
+
+
+ASKS_AMOUNT = re.compile(r"多少|能报|可报|报销|一共|合计|总共|算一下|计算")
 
 
 TOTAL_IN_TABLE = re.compile(r"总计 \*\*(\d+(?:\.\d+)?) 元\*\*")
@@ -136,17 +148,25 @@ def fix_conclusion_total(answer: str) -> tuple[str, bool]:
 @app.post("/tool/calculate", dependencies=[Depends(service_caller)])
 def tool_calculate(req: ToolCalcRequest):
     """Always answers 200 so the Dify workflow keeps running; errors go in the body."""
-    if req.is_calculation != "yes":
+    today = date.fromisoformat(req.claim_date) if req.claim_date else date.today()
+    parsed = parse_trip(req.question, today)
+    wants_amount = parsed.start and parsed.end and ASKS_AMOUNT.search(req.question)
+    if req.is_calculation != "yes" and not wants_amount:
         return {"ok": False, "skipped": True}
     try:
-        trip = TripRequest(
-            city=req.city, start=req.start, end=req.end,
-            nights=_nights(req),
-            meals_provided={d: kind for d, kind in _pairs(req.meals_provided)},
-            claim_date=req.claim_date or None,
-        )
+        # Rule-based values win; the LLM's extraction only fills what the parser could not read.
+        start = parsed.start or date.fromisoformat(req.start)
+        end = parsed.end or date.fromisoformat(req.end)
+        nights, nights_src = _nights(req, start, end, parsed)
+        meals = parsed.meals or {date.fromisoformat(d): kind for d, kind in _pairs(req.meals_provided)}
+        trip = TripRequest(city=parsed.city or req.city, start=start, end=end, nights=nights,
+                           meals_provided=meals, claim_date=req.claim_date or None)
+        sources = {"city": "parser" if parsed.city else "llm",
+                   "dates": "parser" if parsed.start else "llm",
+                   "nights": nights_src,
+                   "meals": "parser" if parsed.meals else ("llm" if meals else "none")}
         result = calculate(trip)
-        return {"ok": True, "result": result.model_dump(mode="json"), "breakdown_md": to_markdown(result)}
+        return {"ok": True, "result": result.model_dump(mode="json"), "breakdown_md": to_markdown(result), "sources": sources}
     except PolicyGap as gap:
         return {"ok": False, "policy_gap": str(gap)}
     except ValueError as e:
@@ -169,14 +189,18 @@ def ask(req: AskRequest, user=Depends(current_user)):
         raise HTTPException(502, f"Dify request failed: {e}")
     data = r.json()
     answer = re.sub(r"<think>.*?</think>", "", data["answer"], flags=re.S).strip()
+    answer = normalize(answer)
     answer, corrected = fix_conclusion_total(answer)
 
     result = check(answer, user["role"])
     blocked = bool(result.restricted)
     if blocked:
         answer = BLOCKED_ANSWER
-    elif result.unknown:
-        answer += "\n\n⚠ 系统提示：回答中引用的 " + "、".join(result.unknown) + " 在政策中不存在，请以政策原文为准。"
+    else:
+        if result.unknown:
+            answer += "\n\n⚠ 系统提示：回答中引用的 " + "、".join(result.unknown) + " 在政策中不存在，请以政策原文为准。"
+        if result.malformed:
+            answer += "\n\n⚠ 系统提示：回答中的引用 " + "、".join(result.malformed) + " 没有注明政策版本，请以政策原文为准。"
 
     latency = int((time.monotonic() - t0) * 1000)
     audit_id = db.log_answer(user, req.question, answer, result, blocked, latency, data.get("message_id"), corrected)

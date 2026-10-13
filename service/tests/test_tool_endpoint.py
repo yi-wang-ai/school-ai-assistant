@@ -70,3 +70,27 @@ def test_matching_conclusion_total_is_kept():
     from app.main import fix_conclusion_total
     answer = "结论：总计可报销 **1700 元**。\n\n合计：…；总计 **1700 元**"
     assert fix_conclusion_total(answer) == (answer, False)
+
+
+def test_parser_overrides_misread_end_date():
+    # V04: the LLM once extracted end=2026-08-31 for "8月30日到9月2日"
+    r = post({"is_calculation": "yes", "city": "绍兴", "start": "2026-08-30", "end": "2026-08-31",
+              "question": "我2026年8月30日到9月2日出差，伙食补助一共多少？", "claim_date": "2026-10-13"}).json()
+    assert r["result"]["totals"]["meal"] == 440 and r["sources"]["dates"] == "parser"
+
+
+def test_parser_triggers_calculation_when_llm_says_no():
+    r = post({"is_calculation": "no", "claim_date": "2026-10-13",
+              "question": "2026年10月12日到14日去北京出差，住了2晚，每晚600元。一共能报多少？"}).json()
+    assert r["ok"] and r["result"]["total"] == 1700
+
+
+def test_llm_per_night_prices_kept_when_they_differ():
+    r = post({"is_calculation": "yes", "city": "杭州", "start": "2026-11-03", "end": "2026-11-05",
+              "nights": "2026-11-03:400;2026-11-04:500", "claim_date": "2026-10-13",
+              "question": "11月3日到5日去杭州，第一晚400元，第二晚500元，能报多少"}).json()
+    assert r["sources"]["nights"] == "llm" and r["result"]["totals"]["hotel"] == 850
+
+
+def test_policy_question_is_skipped():
+    assert post({"is_calculation": "no", "question": "现在出差伙食补助每天多少钱？"}).json() == {"ok": False, "skipped": True}

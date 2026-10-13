@@ -117,10 +117,11 @@ def main():
     ap.add_argument("--label", required=True)
     ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--target", choices=["dify", "service"], default="dify")
+    ap.add_argument("--testset", default="testset.jsonl", help="file in eval/, e.g. holdout.jsonl")
     ap.add_argument("--rescore", action="store_true", help="re-score saved answers without calling Dify")
     args = ap.parse_args()
 
-    items = [json.loads(l) for l in (ROOT / "eval/testset.jsonl").read_text().splitlines() if l.strip()]
+    items = [json.loads(l) for l in (ROOT / "eval" / args.testset).read_text().splitlines() if l.strip()]
     out = ROOT / "eval/results" / f"{args.label}.jsonl"
 
     if args.rescore:

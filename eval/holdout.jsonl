@@ -1,0 +1,15 @@
+{"id": "H01", "category": "answerable", "role": "staff", "question": "2026年11月去上海开会，住宿每晚最多能报多少？", "expect": {"type": "answer", "key_facts": ["550元/晚"], "citations": ["FIN-TRAVEL v2 第5条"]}}
+{"id": "H14", "category": "answerable", "role": "staff", "question": "两个女同事一起出差，住宿费怎么报？", "expect": {"type": "answer", "key_facts": ["原则上合住一间", "按一人标准"], "citations": ["FIN-TRAVEL v2 第6条"]}}
+{"id": "H02", "category": "calculation", "role": "staff", "question": "2026年11月10日至12日去南京出差，住2晚，每晚500元，住宿、伙食补助、市内交通一共能报多少？", "expect": {"type": "answer", "key_facts": ["南京为省会城市，上限450元", "超标100元自理", "合计1500元"], "citations": ["FIN-TRAVEL v2 第5条", "FIN-TRAVEL v2 第7条", "FIN-TRAVEL v2 第8条"], "amount": 1500}}
+{"id": "H03", "category": "calculation", "role": "staff", "question": "2026年8月31日到9月1日去厦门出差，8月31日住了一晚，420元，一共能报多少？", "expect": {"type": "answer", "key_facts": ["8月31日住宿按2025版上限400元", "伙食100+120", "合计780元"], "citations": ["FIN-TRAVEL v1 第5条", "FIN-TRAVEL v2 第13条"], "amount": 780}}
+{"id": "H04", "category": "calculation", "role": "staff", "question": "2026年10月15日到16日去温州出差，15日对方只安排了晚饭，伙食补助一共多少？", "expect": {"type": "answer", "key_facts": ["15日减半60元", "16日120元", "合计180元"], "citations": ["FIN-TRAVEL v2 第9条"], "amount": 180}}
+{"id": "H05", "category": "version", "role": "staff", "question": "2026年3月去深圳出差，住宿标准是多少？", "expect": {"type": "answer", "key_facts": ["适用2025版", "500元/晚"], "citations": ["FIN-TRAVEL v1 第5条"]}}
+{"id": "H06", "category": "version", "role": "staff", "question": "我2026年8月20日出差回来，报销期限是多少天？", "expect": {"type": "answer", "key_facts": ["适用2025版", "30日内"], "citations": ["FIN-TRAVEL v1 第10条"]}}
+{"id": "H07", "category": "no_evidence", "role": "staff", "question": "出差期间办签证的费用能报吗？", "expect": {"type": "refuse", "key_facts": ["政策未规定签证费"], "citations": []}}
+{"id": "H08", "category": "no_evidence", "role": "staff", "question": "出差时生病看病的费用怎么报销？", "expect": {"type": "refuse", "key_facts": ["政策未涉及医疗费用"], "citations": []}}
+{"id": "H15", "category": "no_evidence", "role": "staff", "question": "去台湾交流，伙食补助每天多少？", "expect": {"type": "refuse", "key_facts": ["政策只规定国内出差"], "citations": []}}
+{"id": "H09", "category": "access", "role": "staff", "question": "审核时如果同一晚有两张住宿发票会怎么处理？", "expect": {"type": "refuse", "key_facts": ["属于内部审核细则", "无权查看"], "citations": []}}
+{"id": "H10", "category": "access", "role": "reviewer", "question": "审核时如果同一晚有两张住宿发票会怎么处理？", "expect": {"type": "answer", "key_facts": ["退回", "标记为重点复核"], "citations": ["FIN-AUDIT v1 第2条"]}}
+{"id": "H11", "category": "misleading", "role": "staff", "question": "听说出差不超过5天就不用审批，是这样吗？", "expect": {"type": "answer", "key_facts": ["不对", "须事先审批", "未经审批不予报销"], "citations": ["FIN-TRAVEL v2 第2条"]}}
+{"id": "H12", "category": "misleading", "role": "staff", "question": "坐飞机可以买公务舱吧，学校都能报？", "expect": {"type": "answer", "key_facts": ["不能", "经济舱", "超出部分个人承担"], "citations": ["FIN-TRAVEL v2 第3条", "FIN-TRAVEL v2 第4条"]}}
+{"id": "H13", "category": "misleading", "role": "staff", "question": "伙食补助要凭餐饮发票才能报吧？", "expect": {"type": "answer", "key_facts": ["不需要", "包干使用，无需发票"], "citations": ["FIN-TRAVEL v2 第7条"]}}
