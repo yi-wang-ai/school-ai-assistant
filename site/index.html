@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>校园 AI 应用 · 报销政策助手</title>
+<meta name="description" content="基于 Dify 的职业院校 AI 应用作品：报销政策问答 + 确定性规则服务。计算器在浏览器中实时运行项目源码。">
+<style>
+:root{
+  --bg:#f7f8fa; --panel:#ffffff; --ink:#1d2330; --muted:#5b6475; --line:#e3e6ec;
+  --accent:#2556d9; --accent-soft:#e8eefc; --ok:#1f7a4d; --ok-soft:#e5f4ec;
+  --bad:#b4372c; --bad-soft:#fbe9e7; --warn:#946200; --warn-soft:#fdf3d8; --code:#f1f3f7;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#11141a; --panel:#181c24; --ink:#e6e9ef; --muted:#9aa3b2; --line:#2a303b;
+    --accent:#7aa2ff; --accent-soft:#1d2840; --ok:#5fc48f; --ok-soft:#16291f;
+    --bad:#ff8b80; --bad-soft:#331b19; --warn:#e3b34a; --warn-soft:#2e2611; --code:#222733; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif}
+a{color:var(--accent)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+header{padding:40px 0 24px}
+h1{font-size:28px;line-height:1.3;margin:0 0 8px}
+h2{font-size:21px;margin:0 0 6px}
+h3{font-size:16px;margin:0 0 8px}
+.sub{color:var(--muted);margin:0 0 18px;max-width:760px}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.badge{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:13px;color:var(--muted)}
+.btns{display:flex;flex-wrap:wrap;gap:10px}
+.btn{display:inline-block;padding:9px 16px;border-radius:8px;border:1px solid var(--accent);color:var(--accent);text-decoration:none;font-weight:600;background:transparent;cursor:pointer;font-size:14px}
+.btn.primary{background:var(--accent);color:#fff}
+.notice{background:var(--warn-soft);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;padding:12px 14px;margin:20px 0 8px;font-size:14px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;margin:18px 0}
+.lead{color:var(--muted);margin:0 0 16px}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:6px;margin-left:6px;vertical-align:2px;font-weight:600}
+.tag.live{background:var(--ok-soft);color:var(--ok)}
+.tag.rec{background:var(--accent-soft);color:var(--accent)}
+/* architecture */
+.flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:stretch}
+.node{border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;background:var(--bg)}
+.node b{display:block;font-size:14px;margin-bottom:2px}
+.node.mine{border-color:var(--accent);background:var(--accent-soft)}
+.legend{font-size:13px;color:var(--muted);margin-top:10px}
+@media (max-width:760px){.flow{grid-template-columns:1fr 1fr}}
+/* forms */
+.grid2{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px}
+@media (max-width:820px){.grid2{grid-template-columns:1fr}}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;font-size:14px}
+textarea{min-height:120px;resize:vertical}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.chip{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.out{min-height:160px}
+.status{font-size:13px;color:var(--muted)}
+.err{background:var(--bad-soft);color:var(--bad);border-radius:8px;padding:10px 12px}
+.okbox{background:var(--ok-soft);color:var(--ok);border-radius:8px;padding:10px 12px}
+.src{font-size:12px;color:var(--muted);margin-top:10px}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:8px 0}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+/* conversations */
+.convs{display:grid;grid-template-columns:260px minmax(0,1fr);gap:18px}
+@media (max-width:820px){.convs{grid-template-columns:1fr}}
+.list button{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer;font:inherit;font-size:13px}
+.list button.on{border-color:var(--accent);background:var(--accent-soft)}
+.list .app{display:block;font-size:11px;color:var(--muted)}
+.v{font-size:11px;font-weight:700;padding:1px 6px;border-radius:5px;float:right}
+.v.pass{background:var(--ok-soft);color:var(--ok)} .v.fail{background:var(--bad-soft);color:var(--bad)} .v.debatable{background:var(--warn-soft);color:var(--warn)}
+.q{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+.meta{font-size:12px;color:var(--muted);margin-bottom:8px}
+.answer{border-left:3px solid var(--accent);padding:2px 0 2px 14px;overflow-x:auto}
+.answer pre{background:var(--code);padding:10px;border-radius:8px;overflow-x:auto}
+.answer code{background:var(--code);padding:1px 4px;border-radius:4px}
+.note{margin-top:12px;font-size:13px;border-radius:8px;padding:8px 12px}
+.note.pass{background:var(--ok-soft)} .note.fail{background:var(--bad-soft)} .note.debatable{background:var(--warn-soft)}
+ul.tight{margin:6px 0;padding-left:20px}
+footer{color:var(--muted);font-size:13px;padding:10px 0 40px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>校园 AI 应用：报销政策助手</h1>
+  <p class="sub">面向职业院校行政、教学、科研场景，在私有化部署的 Dify 上搭建 3 个 AI 应用。核心应用回答差旅报销政策问题：大模型负责理解问题和组织语言，金额计算、版本选择、权限控制和审计留痕由自己编写的 Python 规则服务完成。</p>
+  <div class="badges">
+    <span class="badge">Dify 私有化部署</span><span class="badge">FastAPI + PostgreSQL</span>
+    <span class="badge">RAG：bge-m3 + 重排序 + 混合检索</span><span class="badge">28 个单元测试</span>
+    <span class="badge">39 题评测集</span><span class="badge">全部使用免费模型 API</span>
+  </div>
+  <div class="btns">
+    <a class="btn primary" href="#calc">在线试算</a>
+    <a class="btn" href="#convs">查看对话记录</a>
+    <a class="btn" href="https://github.com/yi-wang-ai/school-ai-assistant">GitHub 源码</a>
+  </div>
+  <div class="notice">
+    <b>本页说明：</b>“在线试算”和“引用校验”在你的浏览器里实时运行项目中的同一份 Python 源码（<code>service/app/</code>），不经过服务器。
+    AI 对话是 2026-10-13 用免费模型 Qwen3-8B 实际运行的<b>记录</b>，不是实时生成，其中也保留了失败案例。所有政策、讲义、论文数据均为虚构。
+  </div>
+</header>
+
+<section id="arch">
+  <h2>架构</h2>
+  <p class="lead">用户的问题先到规则服务，由服务端根据令牌确定角色，再交给 Dify。蓝色部分是自己编写的代码。</p>
+  <div class="flow">
+    <div class="node mine"><b>1 · 规则服务 /ask</b>校验用户令牌，确定角色（教职工 / 审核人员）</div>
+    <div class="node"><b>2 · Dify 检索</b>公开政策知识库；审核人员额外检索内部细则</div>
+    <div class="node"><b>3 · 参数提取</b>从问题中提取城市、日期、房价、用餐安排</div>
+    <div class="node mine"><b>4 · 规则服务 /tool/calculate</b>按每天适用的版本计算金额，检查报销期限，生成明细表</div>
+    <div class="node"><b>5 · 大模型</b>写结论并标注条款出处；明细表由代码附在回答后</div>
+  </div>
+  <div class="flow" style="margin-top:10px;grid-template-columns:1fr">
+    <div class="node mine"><b>6 · 规则服务返回前检查</b>引用的条款是否存在；教职工是否拿到内部内容（拦截）；结论总额是否与计算结果一致（更正）；写入 PostgreSQL 审计日志</div>
+  </div>
+  <p class="legend">为什么不让大模型算钱：换成免费 8B 模型后，模型曾把 3080 元写成 1000 元，还为日本出差编了一个国内标准。所以金额全部改由代码生成并可单元测试。</p>
+</section>
+
+<section id="calc">
+  <h2>在线试算 <span class="tag live">实时运行</span></h2>
+  <p class="lead">输入一次出差，浏览器运行项目里的 <code>rules.py</code> 和 <code>calculator.py</code>。可以点预设场景，也可以自己改。</p>
+  <div class="grid2">
+    <div>
+      <div class="presets" id="presets"></div>
+      <label for="city">目的地城市</label><input id="city" value="北京">
+      <div class="row">
+        <div><label for="start">出发日期</label><input id="start" type="date" value="2026-10-12"></div>
+        <div><label for="end">返回日期</label><input id="end" type="date" value="2026-10-14"></div>
+      </div>
+      <div class="row">
+        <div><label for="price">每晚房价（元）</label><input id="price" type="number" min="0" value="600"></div>
+        <div><label for="nights">住宿晚数</label><input id="nights" type="number" min="0" value="2"></div>
+      </div>
+      <label for="meals">接待单位安排用餐（可选，每行一条：日期 full 或 partial）</label>
+      <textarea id="meals" style="min-height:60px" placeholder="2026-10-13 full"></textarea>
+      <label for="claim">计划报销日期（可选，用于检查报销期限）</label><input id="claim" type="date">
+      <div style="margin-top:14px"><button class="btn primary" id="run" disabled>计算</button> <span class="status" id="pystatus">正在加载 Python 运行环境（约 10 MB，首次需要几秒）…</span></div>
+    </div>
+    <div class="out" id="calcout"><p class="status">结果会显示在这里。</p></div>
+  </div>
+  <p class="src">源码：<a href="https://github.com/yi-wang-ai/school-ai-assistant/blob/main/service/app/rules.py">rules.py</a> · <a href="https://github.com/yi-wang-ai/school-ai-assistant/blob/main/service/app/calculator.py">calculator.py</a>。约定：补助按自然天数（含首尾两天），每天和每晚按当天有效的版本计算，报销期限按出差最后一天适用的版本。</p>
+</section>
+
+<section id="check">
+  <h2>引用校验 <span class="tag live">实时运行</span></h2>
+  <p class="lead">规则服务在返回回答前会检查其中的条款引用。下面的示例故意包含一个不存在的条款（v1 只有 12 条）和一条内部细则，切换角色看结果。</p>
+  <div class="grid2">
+    <div>
+      <label for="ans">回答文本</label>
+      <textarea id="ans">结论：伙食补助每天 100 元〔FIN-TRAVEL v1 第7条〕。跨版本出差分段适用〔FIN-TRAVEL v1 第13条〕。超过 5000 元需院领导加签〔FIN-AUDIT v1 第4条〕。</textarea>
+      <label for="role">用户角色</label>
+      <select id="role"><option value="staff">教职工 staff</option><option value="reviewer">审核人员 reviewer</option></select>
+      <div style="margin-top:14px"><button class="btn primary" id="runcheck" disabled>校验</button></div>
+    </div>
+    <div class="out" id="checkout"><p class="status">结果会显示在这里。</p></div>
+  </div>
+  <p class="src">源码：<a href="https://github.com/yi-wang-ai/school-ai-assistant/blob/main/service/app/citations.py">citations.py</a></p>
+</section>
+
+<section id="convs">
+  <h2>对话记录 <span class="tag rec">运行记录</span></h2>
+  <p class="lead">2026-10-13 通过规则服务实际运行的回答原文（模型：<span id="modelname"></span>），每条都附人工复核结论。左侧选择场景。</p>
+  <div class="convs">
+    <div class="list" id="convlist"></div>
+    <div id="convview"></div>
+  </div>
+</section>
+
+<section id="eval">
+  <h2>评测结果</h2>
+  <p class="lead">自建 39 题评测集，覆盖可回答问题、版本陷阱、金额计算、无依据拒答、权限、诱导性问题。关键词自动评分会误判，被标记的题全部人工复核。</p>
+  <h3>不同配置的对比</h3>
+  <div class="tablewrap"><table id="setups"><thead><tr><th>配置</th><th>模型</th><th>结果（人工复核后）</th><th>中位响应时间</th></tr></thead><tbody></tbody></table></div>
+  <h3 style="margin-top:16px">当前配置分类结果</h3>
+  <div class="tablewrap"><table id="cats"><thead><tr><th>类别</th><th class="num">题数</th><th class="num">自动评分通过</th><th class="num">人工复核通过</th><th class="num">有争议</th><th class="num">失败</th></tr></thead><tbody></tbody></table></div>
+  <h3 style="margin-top:16px">局限</h3>
+  <ul class="tight">
+    <li>评测题由开发者本人编写；每种配置只运行一次，小模型每次输出会有差异。</li>
+    <li>参数提取可能出错（曾把结束日期读错），这种情况下代码会正确地算出错误的行程，目前没有检查能发现。</li>
+    <li>免费模型比付费模型慢（中位 36 秒对 19 秒），措辞也更不稳定。</li>
+  </ul>
+  <p class="src">完整记录：<a href="https://github.com/yi-wang-ai/school-ai-assistant/tree/main/eval">eval/</a>（每题的回答原文、自动检查结果和人工复核意见）</p>
+</section>
+
+<footer>
+  所有政策、讲义、论文数据均为虚构示例；助手只提供政策咨询，不审批报销。
+  平台使用开源的 <a href="https://github.com/langgenius/dify">Dify</a>（未修改其代码）。
+  作者：Yi Wang · <a href="https://github.com/yi-wang-ai/school-ai-assistant">github.com/yi-wang-ai/school-ai-assistant</a>
+</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const md = s => (window.marked ? marked.parse(s) : '<pre>' + esc(s) + '</pre>');
+
+/* ---------- presets ---------- */
+const PRESETS = [
+  {name:'北京·住宿超标', city:'北京', start:'2026-10-12', end:'2026-10-14', price:600, nights:2, meals:'', claim:''},
+  {name:'广州·跨新旧版本', city:'广州', start:'2026-08-30', end:'2026-09-02', price:540, nights:3, meals:'', claim:'2026-10-13'},
+  {name:'成都·只安排午饭', city:'成都', start:'2026-10-10', end:'2026-10-12', price:0, nights:0, meals:'2026-10-11 partial', claim:''},
+  {name:'2025 年·部分餐次（政策空白）', city:'绍兴', start:'2025-12-10', end:'2025-12-11', price:300, nights:1, meals:'2025-12-10 partial', claim:''},
+  {name:'重庆（政策未分类）', city:'重庆', start:'2026-10-10', end:'2026-10-11', price:400, nights:1, meals:'', claim:''},
+];
+PRESETS.forEach(p => {
+  const b = document.createElement('button'); b.className = 'chip'; b.textContent = p.name;
+  b.onclick = () => { for (const k of ['city','start','end','price','nights','meals','claim']) $(k).value = p[k]; if (pyReady) runCalc(); };
+  $('presets').appendChild(b);
+});
+
+/* ---------- Python in the browser ---------- */
+let py, pyReady = false;
+const FILES = ['__init__.py', 'rules.py', 'calculator.py', 'citations.py'];
+const GLUE = `
+import json
+from app.calculator import TripRequest, calculate, to_markdown
+from app.rules import PolicyGap
+from app.citations import check
+
+def run_calc(payload):
+    try:
+        r = calculate(TripRequest(**json.loads(payload)))
+        return json.dumps({"ok": True, "result": r.model_dump(mode="json"), "md": to_markdown(r)}, ensure_ascii=False)
+    except PolicyGap as g:
+        return json.dumps({"ok": False, "policy_gap": str(g)}, ensure_ascii=False)
+    except ValueError as e:
+        return json.dumps({"ok": False, "input_error": str(e)}, ensure_ascii=False)
+
+def run_check(answer, role):
+    return check(answer, role).model_dump_json()
+`;
+(async () => {
+  try {
+    py = await loadPyodide();
+    await py.loadPackage('pydantic');
+    py.FS.mkdirTree('/home/pyodide/app');
+    for (const f of FILES) {
+      const r = await fetch('py/' + f);
+      if (!r.ok) throw new Error('无法加载 ' + f);
+      py.FS.writeFile('/home/pyodide/app/' + f, await r.text());
+    }
+    py.runPython(GLUE);
+    pyReady = true;
+    $('run').disabled = false; $('runcheck').disabled = false;
+    $('pystatus').textContent = 'Python 已就绪（' + py.version + '）';
+    runCalc(); runCheck();
+  } catch (e) {
+    $('pystatus').innerHTML = '<span class="err">Python 环境加载失败：' + esc(e.message) + '。可能是网络无法访问 cdn.jsdelivr.net，请稍后重试。</span>';
+  }
+})();
+
+function payload() {
+  const start = $('start').value, price = Number($('price').value), n = Number($('nights').value);
+  const nights = [];
+  if (price > 0 && n > 0) {
+    const d0 = new Date(start + 'T00:00:00Z');
+    for (let i = 0; i < n; i++) { const d = new Date(d0.getTime() + i * 86400000); nights.push({date: d.toISOString().slice(0, 10), price}); }
+  }
+  const meals = {};
+  $('meals').value.split('\n').map(s => s.trim()).filter(Boolean).forEach(line => {
+    const [d, k] = line.split(/\s+/); if (d && k) meals[d] = k;
+  });
+  const p = {city: $('city').value.trim(), start, end: $('end').value, nights, meals_provided: meals};
+  if ($('claim').value) p.claim_date = $('claim').value;
+  return p;
+}
+
+const ITEM = {hotel: '住宿费', meal: '伙食补助', local: '市内交通'};
+function runCalc() {
+  if (!pyReady) return;
+  const out = JSON.parse(py.globals.get('run_calc')(JSON.stringify(payload())));
+  if (!out.ok) {
+    const why = out.policy_gap ? '政策空白：' + out.policy_gap + '。系统不估算，建议联系财务处。' : '输入有误：' + out.input_error;
+    $('calcout').innerHTML = '<div class="err">' + esc(why) + '</div>';
+    return;
+  }
+  $('calcout').innerHTML = '<div class="tablewrap">' + md(out.md) + '</div>';
+}
+function runCheck() {
+  if (!pyReady) return;
+  const r = JSON.parse(py.globals.get('run_check')($('ans').value, $('role').value));
+  let h = '<table><tr><th>引用的条款</th><td>' + (r.cited.map(esc).join('<br>') || '无') + '</td></tr>';
+  h += '<tr><th>不存在的条款</th><td>' + (r.unknown.map(esc).join('<br>') || '无') + '</td></tr>';
+  h += '<tr><th>越权引用</th><td>' + (r.restricted.map(esc).join('<br>') || '无') + '</td></tr></table>';
+  if (r.restricted.length) h += '<div class="err">教职工的回答引用了内部审核细则：服务会拦截整条回答，改为“无权查看”的提示。</div>';
+  else if (r.unknown.length) h += '<div class="err">存在不存在的条款：服务会在回答末尾加上系统提示。</div>';
+  else h += '<div class="okbox">全部引用有效，回答原样返回。</div>';
+  $('checkout').innerHTML = h;
+}
+$('run').onclick = runCalc;
+$('runcheck').onclick = runCheck;
+$('role').onchange = runCheck;
+
+/* ---------- recorded conversations + evaluation ---------- */
+const VERDICT = {pass: '通过', fail: '失败', debatable: '有争议'};
+const ROLE = {staff: '教职工', reviewer: '审核人员', student: '学生', researcher: '科研人员'};
+fetch('data/showcase.json').then(r => r.json()).then(data => {
+  $('modelname').textContent = data.model;
+  const list = $('convlist');
+  data.conversations.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.innerHTML = '<span class="v ' + c.verdict + '">' + VERDICT[c.verdict] + '</span><span class="app">' + esc(c.app) + '</span>' + esc(c.title);
+    b.onclick = () => show(i);
+    list.appendChild(b);
+  });
+  function show(i) {
+    [...list.children].forEach((b, j) => b.classList.toggle('on', i === j));
+    const c = data.conversations[i];
+    $('convview').innerHTML =
+      '<div class="meta">' + esc(c.app) + ' · 角色：' + esc(ROLE[c.role] || c.role) + ' · 用时 ' + c.latency_s + ' 秒</div>' +
+      '<div class="q"><b>问：</b>' + esc(c.question) + '</div>' +
+      '<div class="answer">' + md(c.answer) + '</div>' +
+      '<div class="note ' + c.verdict + '"><b>人工复核：' + VERDICT[c.verdict] + '。</b>' + esc(c.note) + '</div>';
+  }
+  show(0);
+  $('setups').querySelector('tbody').innerHTML = data.setups.map(s =>
+    '<tr><td>' + esc(s.setup) + '</td><td>' + esc(s.model) + '</td><td>' + esc(s.result) + '</td><td>' + esc(s.latency) + '</td></tr>').join('');
+  const cats = data.categories;
+  const sum = k => cats.reduce((a, c) => a + c[k], 0);
+  $('cats').querySelector('tbody').innerHTML = cats.map(c =>
+    '<tr><td>' + esc(c.category) + '</td><td class="num">' + c.n + '</td><td class="num">' + c.auto + '</td><td class="num">' + c.pass + '</td><td class="num">' + c.debatable + '</td><td class="num">' + c.fail + '</td></tr>').join('') +
+    '<tr><th>合计</th><th class="num">' + sum('n') + '</th><th class="num">' + sum('auto') + '</th><th class="num">' + sum('pass') + '</th><th class="num">' + sum('debatable') + '</th><th class="num">' + sum('fail') + '</th></tr>';
+});
+</script>
+</body>
+</html>

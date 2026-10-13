@@ -1,0 +1,37 @@
+# Publishes site/ to GitHub Pages. The page runs the rules-service code in the browser,
+# so the same files are copied from service/app/ at build time instead of duplicated.
+name: Deploy showcase page
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "service/app/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy rules-service code into the site
+        run: |
+          mkdir -p site/py
+          cp service/app/__init__.py service/app/rules.py service/app/calculator.py service/app/citations.py site/py/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

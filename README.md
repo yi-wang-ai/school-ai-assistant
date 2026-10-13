@@ -8,6 +8,10 @@ version rules, access control and record keeping. It runs entirely on free model
 The main application answers staff questions about travel reimbursement policy. Two lighter
 apps on the same Dify instance cover teaching (course Q&A) and research (paper summaries).
 
+**Showcase page: https://yi-wang-ai.github.io/school-ai-assistant/** — the calculator and
+citation checker run this repository's Python code live in the browser; the AI conversations
+are recorded runs (including failures).
+
 > All policies, course notes and paper data in this repository are fictional and labelled as such.
 > The assistant is advisory only: it never approves or rejects a claim.
 
