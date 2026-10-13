@@ -67,7 +67,8 @@ does not cover, access control and misleading questions. Details in [eval/README
 | + code-rendered amounts, total check, domestic-only rule | free (Qwen3-8B) | 36/39, 2 debatable, 1 fail | 36 s |
 | + rule-based trip parser, conclusion rules, citation normalization | free (Qwen3-8B) | 38/39, 1 debatable; held-out 15/15 | 35 s |
 | + code-written conclusions for amounts, wording clean-up | free (Qwen3-8B) | 39/39; held-out 15/15; 1 wording issue open | 35 s |
-| **Current: + reviewer conclusions from the audit guide, approval refusal, v1 partial-meal gap** | **free (Qwen3-8B)** | **38/39, 1 debatable; held-out 17/17** | **35 s** |
+| + reviewer conclusions from the audit guide, approval refusal, v1 partial-meal gap | free (Qwen3-8B) | 38/39, 1 debatable; held-out 17/17 | 35 s |
+| **Current: + topic-checked citations, personal-stay conclusion** | **free (Qwen3-8B)** | **39/39; held-out 17/17** | **34 s** |
 
 What moving to the free 8B model showed: it miscopied and invented numbers, so amounts were
 moved entirely into code (calculations 3/7 → 7/7 on automatic checks). It also invented a
@@ -85,9 +86,10 @@ prefixed with "no"; boilerplate and cross-version citations that cannot support 
 conclusion are removed; hotel nights the model invents for a question without lodging are
 ignored. Reviewer questions about the audit guide now get their conclusion from the article
 text itself (the five articles are data in `rules.py`), approval requests get a fixed refusal,
-and a 2025 trip can no longer be given the 2026 half-allowance rule. Still open: one answer
-(N05) infers "no" without saying the policy is silent, and one held-out answer (H12) cites a
-wrong but existing clause; neither is caught by code. Limits: one run per configuration
+and a 2025 trip can no longer be given the 2026 half-allowance rule. Citations are checked
+against the question's topic (e.g. a flight-class question cannot be supported by the hotel
+clause) and against the version in force, and questions about private days around a trip get
+a code-written "not covered" conclusion with the day-count clauses. Limits: one run per configuration
 (small-model output varies between runs), and the test set was written by the builder.
 
 Course app: on the free model, 11 of 12 lab-task requests got a complete solution despite the
@@ -113,7 +115,7 @@ Requirements: Docker, about 20 GB of free disk, and a SiliconFlow API key (only 
 5. Tests and evaluation:
 
    ```bash
-   cd service && uv run pytest            # 96 unit tests, no database needed
+   cd service && uv run pytest            # 109 unit tests, no database needed
    cd .. && python eval/run_eval.py --label run1 --target service
    ```
 

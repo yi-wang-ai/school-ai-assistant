@@ -183,7 +183,29 @@ rewritten as "未作规定" (H07).
 | Third round (`fix4`, `holdout-fix4`) | 39/39 | 15/15 |
 | Fourth round (`fix5`, `holdout-fix5`) | 38/39, 1 debatable (N05) | 17/17 |
 
-N05 passed in the third round and is debatable in this one: the model's wording varies between
+## Fifth round: N05 and H12 (2026-10-13)
+
+- **H12** (business class cited the hotel clause): `prune_citations` now knows which
+  FIN-TRAVEL clauses can support each topic (flight/train class → 3–4, hotel → 5–6, meals →
+  7/9, …). Off-topic citations are dropped and, unless the conclusion is a policy gap, the
+  topic's clauses are cited for the version in force. A clause cited for a version not in
+  force is dropped only when the in-force version of the same clause is also cited. The
+  code-generated breakdown table is never pruned — the replay showed it losing clause 8/10
+  sources before that exemption was added.
+- **N05** (private days after a trip): a code-written conclusion — the policy does not cover
+  personal stays; allowances count business-trip days (第7/8条); the policy covers business
+  travel only (第1条); ask the finance office.
+
+| | Main 39 (manual) | Held-out 17 (manual) |
+|---|---|---|
+| Fourth round (`fix5`, `holdout-fix5`) | 38/39, 1 debatable | 17/17 |
+| Fifth round (`fix6`, `holdout-fix6`) | **39/39** | **17/17** |
+
+The citation rules can only remove or add clauses that exist and match the question's topic;
+they do not judge whether a single on-topic clause is the best one (M01, M06 and H12 each cite
+one of the two expected clauses).
+
+(Fourth-round note) N05 passed in the third round and is debatable in this one: the model's wording varies between
 runs, and whether "no, a private extension is not business travel" counts as flagging the gap
 is a judgement call. H12 is correct but cites the hotel clause instead of the transport clause;
 a wrong-but-existing citation is not caught. The grader's refusal markers now include
