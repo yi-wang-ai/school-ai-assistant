@@ -89,3 +89,27 @@ def test_leading_yes_kept_for_yes_no_question():
     from app.wording import drop_needless_yes
     answer = "结论：可以，按一人标准报销。"
     assert drop_needless_yes(answer, "两人合住能报吗？") == answer
+
+
+def test_bare_no_with_gap_basis_becomes_gap():
+    # H07: conclusion "不可以" while its own basis says the policy does not cover it
+    answer = "结论：不可以  \n依据：现行政策未作规定〔FIN-TRAVEL v2 第1条〕  \n计算：（不涉及）"
+    out = fix_access_and_gap(answer, "staff", "出差期间办签证的费用能报吗？")
+    assert out.splitlines()[0] == "结论：现行政策未作规定，建议联系财务处确认。"
+
+
+def test_no_with_real_basis_is_kept():
+    answer = "结论：不可以。\n依据：〔FIN-TRAVEL v2 第4条〕"
+    assert fix_access_and_gap(answer, "staff", "商务座能报吗？") == answer
+
+
+def test_pruning_leaves_no_dangling_conjunction():
+    # N05: "〔FIN-TRAVEL v1 第9条〕及〔FIN-TRAVEL v2 第13条〕。" -> no trailing "及。"
+    out, removed = prune_citations("依据：〔FIN-TRAVEL v1 第9条〕及〔FIN-TRAVEL v2 第13条〕。", "自费多留两天能领补助吗", TODAY)
+    assert out == "依据：〔FIN-TRAVEL v1 第9条〕。" and removed == ["FIN-TRAVEL v2 第13条"]
+
+
+def test_leading_no_removed_for_how_question():
+    from app.wording import drop_needless_yes
+    out = drop_needless_yes("结论：不可以，按审批天数核减。", "报销人申报的伙食补助天数比审批天数多，怎么处理？")
+    assert out == "结论：按审批天数核减。"

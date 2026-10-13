@@ -125,7 +125,14 @@ def _nights(req: ToolCalcRequest, start: date, end: date, parsed) -> tuple[list[
     return _consecutive(start, count, price), "parser" if parsed.price else "llm"
 
 
-ASKS_AMOUNT = re.compile(r"多少|能报|可报|报销|一共|合计|总共|算一下|计算")
+# A question asks for money only with these words; "报销期限是多少天" asks for a deadline.
+ASKS_AMOUNT = re.compile(r"多少钱|报多少|一共多少|共多少|各多少|合计|总共|算一下|计算|补助.*多少|多少.*补助|费.*多少")
+ASKS_DEADLINE = re.compile(r"期限|多久|几天内|多少天|来得及|逾期")
+
+
+def asks_amount(question: str) -> bool:
+    return bool(ASKS_AMOUNT.search(question)) and not ASKS_DEADLINE.search(question)
+
 
 
 TOTAL_IN_TABLE = re.compile(r"总计 \*\*(\d+(?:\.\d+)?) 元\*\*")
@@ -147,13 +154,37 @@ def _valid_amounts(answer: str) -> set[float]:
     return valid
 
 
-def fix_conclusion_total(answer: str) -> tuple[str, bool]:
-    """If the conclusion states amounts and none of them matches the computed total or a
-    subtotal, replace the conclusion. Returns (answer, corrected)."""
+ITEM_WORDS = {"住宿费": r"住宿|房", "伙食补助": r"伙食|餐|饭", "市内交通": r"交通"}
+
+
+def fix_conclusion_total(answer: str, question: str = "") -> tuple[str, bool]:
+    """When the rules service produced a breakdown for an amount question, the conclusion is
+    written from it by code: the items the user asked about, the total and the breakdown's
+    warnings. The LLM's conclusion is dropped.
+    Returns (answer, corrected) where corrected means the LLM's own amounts did not match."""
     valid = _valid_amounts(answer)
     concl = CONCLUSION.search(answer)
-    if not valid or not concl:
+    if not valid or not concl or (question and not asks_amount(question)):
         return answer, False
+    stated = [float(x) for x in re.findall(r"(\d+(?:\.\d+)?)\s*\**\s*元", concl.group())]
+    corrected = bool(stated) and not any(x in valid for x in stated)
+    total = float(TOTAL_IN_TABLE.search(answer).group(1))
+    line = SUBTOTAL_LINE.search(answer)
+    subs = dict(re.findall(r"(住宿费|伙食补助|市内交通) (\d+(?:\.\d+)?) 元", line.group(1))) if line else {}
+    asked = [k for k, w in ITEM_WORDS.items() if re.search(w, question) and k in subs]
+    if asked and len(asked) < len(subs):
+        lead = "，".join(f"{k} {float(subs[k]):g} 元" for k in asked)
+        text = f"结论：按规则服务计算，{lead}（全部费用总计 {total:g} 元），明细见下表。"
+    elif line:
+        text = f"结论：按规则服务计算，{line.group(1)}；总计 {total:g} 元，明细见下表。"
+    else:
+        text = f"结论：按规则服务计算，总计 {total:g} 元，明细见下表。"
+    parts = [text]
+    if "已超过报销期限" in answer:
+        parts.append("注意：已超过报销期限，见表下提示。")
+    if "未计入" in answer:
+        parts.append("注意：有政策未规定的情形没有计入总额，见表下提示。")
+    return answer[:concl.start()] + "".join(parts) + answer[concl.end():], corrected
     stated = [float(x) for x in re.findall(r"(\d+(?:\.\d+)?)\s*\**\s*元", concl.group())]
     if stated and not any(x in valid for x in stated):
         total = float(TOTAL_IN_TABLE.search(answer).group(1))
@@ -173,8 +204,9 @@ def tool_calculate(req: ToolCalcRequest):
     """Always answers 200 so the Dify workflow keeps running; errors go in the body."""
     today = date.fromisoformat(req.claim_date) if req.claim_date else date.today()
     parsed = parse_trip(req.question, today)
-    wants_amount = parsed.start and parsed.end and ASKS_AMOUNT.search(req.question)
-    if req.is_calculation != "yes" and not wants_amount:
+    wants_amount = bool(parsed.start and parsed.end) and asks_amount(req.question)
+    deadline_only = bool(ASKS_DEADLINE.search(req.question)) and not ASKS_AMOUNT.search(req.question)
+    if deadline_only or (req.is_calculation != "yes" and not wants_amount):
         return {"ok": False, "skipped": True}
     try:
         # Rule-based values win; the LLM's extraction only fills what the parser could not read.
@@ -214,7 +246,7 @@ def ask(req: AskRequest, user=Depends(current_user)):
     answer = re.sub(r"<think>.*?</think>", "", data["answer"], flags=re.S).strip()
     answer = normalize(answer)
     answer, pruned = clean(answer, user["role"], req.question, date.today())
-    answer, corrected = fix_conclusion_total(answer)
+    answer, corrected = fix_conclusion_total(answer, req.question)
 
     result = check(answer, user["role"])
     blocked = bool(result.restricted)

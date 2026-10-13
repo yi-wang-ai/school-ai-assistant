@@ -63,13 +63,16 @@ def test_wrong_conclusion_total_is_replaced():
     from app.main import fix_conclusion_total
     answer = "结论：一共可报销 1700 元。\n依据：…\n\n合计：…；总计 **600 元**"
     fixed, corrected = fix_conclusion_total(answer)
-    assert corrected and "总计 600 元" in fixed and "1700" not in fixed.splitlines()[0]
+    assert corrected and "总计 600 元" in fixed.splitlines()[0] and "1700" not in fixed.splitlines()[0]
 
 
-def test_matching_conclusion_total_is_kept():
+def test_conclusion_written_from_breakdown_with_warning():
     from app.main import fix_conclusion_total
-    answer = "结论：总计可报销 **1700 元**。\n\n合计：…；总计 **1700 元**"
-    assert fix_conclusion_total(answer) == (answer, False)
+    answer = ("结论：不可以，超出标准部分个人自理。\n\n合计：住宿费 1540 元，伙食补助 440 元，市内交通 320 元；总计 **2300 元**\n"
+              "⚠ 已超过报销期限：应在 2026-09-22 前办理")
+    fixed, corrected = fix_conclusion_total(answer)
+    first = fixed.splitlines()[0]
+    assert "总计 2300 元" in first and "住宿费 1540 元" in first and "已超过报销期限" in first and not corrected
 
 
 def test_parser_overrides_misread_end_date():
@@ -100,17 +103,37 @@ def test_item_subtotal_in_conclusion_is_kept():
     # "伙食补助一共多少？" -> the model answers the meal subtotal, not the grand total
     from app.main import fix_conclusion_total
     answer = "结论：伙食补助一共 180 元。\n\n合计：伙食补助 180 元，市内交通 160 元；总计 **340 元**"
-    assert fix_conclusion_total(answer) == (answer, False)
+    fixed, corrected = fix_conclusion_total(answer)
+    assert not corrected and "伙食补助 180 元" in fixed.splitlines()[0]
 
 
 def test_sum_of_two_subtotals_is_kept():
     from app.main import fix_conclusion_total
     answer = "结论：两项共 480 元。\n\n合计：住宿费 500 元，伙食补助 240 元，市内交通 240 元；总计 **980 元**"
-    assert fix_conclusion_total(answer) == (answer, False)
+    assert fix_conclusion_total(answer)[1] is False
 
 
 def test_amount_matching_nothing_is_replaced():
     from app.main import fix_conclusion_total
     answer = "结论：伙食补助一共 200 元。\n\n合计：伙食补助 180 元，市内交通 160 元；总计 **340 元**"
     fixed, corrected = fix_conclusion_total(answer)
-    assert corrected and "340" in fixed.splitlines()[0]
+    assert corrected and "总计 340 元" in fixed.splitlines()[0]
+
+
+def test_deadline_question_is_not_calculated():
+    r = post({"is_calculation": "yes", "city": "", "start": "2026-07-10", "end": "2026-07-10",
+              "question": "我2026年7月10日出差结束，报销期限是多久？", "claim_date": "2026-10-13"}).json()
+    assert r == {"ok": False, "skipped": True}
+
+
+def test_conclusion_leads_with_the_item_asked():
+    from app.main import fix_conclusion_total
+    answer = "结论：可以。\n\n合计：伙食补助 440 元，市内交通 320 元；总计 **760 元**"
+    fixed, _ = fix_conclusion_total(answer, "我2026年8月30日到9月2日出差，伙食补助一共多少？")
+    assert fixed.splitlines()[0] == "结论：按规则服务计算，伙食补助 440 元（全部费用总计 760 元），明细见下表。"
+
+
+def test_deadline_question_conclusion_is_left_to_the_model():
+    from app.main import fix_conclusion_total
+    answer = "结论：应在出差结束后 30 日内办理。\n\n合计：伙食补助 100 元；总计 **100 元**"
+    assert fix_conclusion_total(answer, "报销期限是多少天？") == (answer, False)
